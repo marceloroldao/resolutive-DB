@@ -1,8 +1,15 @@
-"""Reproducible latency benchmark for the BDR PoC.
+"""Reproducible lookup-scaling benchmark for the BDR PoC.
 
-The plot reports measured lookup latency. It does not pre-label BDR as proven
-worst-case O(1); the empirical scaling is what the experiment is designed to
-observe.
+This benchmark compares end-to-end point lookup latency for:
+- BDR PoC
+- Python dict (hash table)
+- sorted list + binary search
+- SQLite INTEGER PRIMARY KEY index in memory
+- linear scan reference
+
+The experiment measures observed latency. It does not assume or pre-label BDR as
+proven worst-case O(1). Repeated runs on different hardware and workloads are
+required before making stronger complexity or performance claims.
 """
 
 from __future__ import annotations
@@ -13,6 +20,7 @@ import csv
 import gc
 from pathlib import Path
 import random
+import sqlite3
 import statistics
 import time
 from typing import Callable
@@ -36,21 +44,23 @@ def median_ns(fn: Callable[[int], object], queries: list[int], repeats: int = 5)
 def benchmark_size(n: int, query_count: int, seed: int) -> dict[str, float | int]:
     rng = random.Random(seed + n)
     keys = list(range(n))
-    queries = [rng.randrange(n) for _ in range(query_count)]
+    queries = [rng.randrange(n) for _ in range(min(query_count, n))]
 
-    # BDR
-    bucket_count = 1
-    target = max(1024, min(1 << 20, n * 2))
-    while bucket_count < target:
-        bucket_count <<= 1
-    bdr = BancoDeDadosResolutivo(bucket_count=bucket_count)
+    # BDR -----------------------------------------------------------------
+    # Keep a fixed bucket space so growth in N increases density rather than
+    # silently resizing the addressing space at every benchmark size.
+    bdr = BancoDeDadosResolutivo(bucket_count=1 << 16)
+    bdr_start = time.perf_counter()
     for key in keys:
         bdr.inserir(key, str(key))
+    bdr_insert_s = time.perf_counter() - bdr_start
 
-    # Python dict baseline
-    mapping = {key: key for key in keys}
+    # Python dict ----------------------------------------------------------
+    dict_start = time.perf_counter()
+    mapping = {key: str(key) for key in keys}
+    dict_insert_s = time.perf_counter() - dict_start
 
-    # Sorted-list baseline approximating binary-tree lookup behavior O(log N).
+    # Sorted-list / binary-search reference -------------------------------
     sorted_keys = keys
 
     def sorted_lookup(key: int) -> int | None:
@@ -59,7 +69,28 @@ def benchmark_size(n: int, query_count: int, seed: int) -> dict[str, float | int
             return sorted_keys[idx]
         return None
 
-    # Linear-scan reference O(N); cap query count so large-N runs remain usable.
+    # SQLite indexed point lookup -----------------------------------------
+    conn = sqlite3.connect(":memory:")
+    conn.execute("PRAGMA journal_mode=OFF")
+    conn.execute("PRAGMA synchronous=OFF")
+    conn.execute("CREATE TABLE records (k INTEGER PRIMARY KEY, payload TEXT NOT NULL)")
+    sqlite_start = time.perf_counter()
+    conn.executemany(
+        "INSERT INTO records(k, payload) VALUES (?, ?)",
+        ((key, str(key)) for key in keys),
+    )
+    conn.commit()
+    sqlite_insert_s = time.perf_counter() - sqlite_start
+    cursor = conn.cursor()
+
+    def sqlite_lookup(key: int) -> str | None:
+        row = cursor.execute(
+            "SELECT payload FROM records WHERE k = ?", (key,)
+        ).fetchone()
+        return None if row is None else row[0]
+
+    # Linear-scan reference O(N). Cap the number of queries so large-N runs
+    # remain practical.
     linear_queries = queries[: min(50, len(queries))]
 
     def linear_lookup(key: int) -> int | None:
@@ -68,27 +99,38 @@ def benchmark_size(n: int, query_count: int, seed: int) -> dict[str, float | int
                 return item
         return None
 
-    # Warm-up
+    # Warm-up --------------------------------------------------------------
     for q in queries[: min(100, len(queries))]:
         bdr.buscar(q)
         mapping.get(q)
         sorted_lookup(q)
+        sqlite_lookup(q)
 
     gc.disable()
     try:
-        bdr_ns = median_ns(lambda q: bdr.buscar(q), queries)
-        dict_ns = median_ns(lambda q: mapping.get(q), queries)
+        bdr_ns = median_ns(bdr.buscar, queries)
+        dict_ns = median_ns(mapping.get, queries)
         sorted_ns = median_ns(sorted_lookup, queries)
+        sqlite_ns = median_ns(sqlite_lookup, queries)
         linear_ns = median_ns(linear_lookup, linear_queries, repeats=1)
     finally:
         gc.enable()
+        conn.close()
 
+    stats = bdr.estatisticas()
     return {
         "N": n,
         "bdr_ns": bdr_ns,
         "dict_ns": dict_ns,
         "sorted_ns": sorted_ns,
+        "sqlite_ns": sqlite_ns,
         "linear_ns": linear_ns,
+        "bdr_insert_s": bdr_insert_s,
+        "dict_insert_s": dict_insert_s,
+        "sqlite_insert_s": sqlite_insert_s,
+        "bdr_load_factor": float(stats["load_factor"]),
+        "bdr_occupied_buckets": int(stats["occupied_buckets"]),
+        "bdr_max_exact_collisions": int(stats["max_exact_collisions"]),
     }
 
 
@@ -100,10 +142,10 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--sizes",
-        default="1000,10000,100000,1000000",
+        default="1000,10000,100000,300000,1000000",
         help="comma-separated dataset sizes",
     )
-    parser.add_argument("--queries", type=int, default=2000)
+    parser.add_argument("--queries", type=int, default=5000)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output-dir", default="benchmarks/results")
     args = parser.parse_args()
@@ -124,12 +166,13 @@ def main() -> None:
     plt.plot(xs, [row["bdr_ns"] for row in results], marker="o", label="BDR PoC")
     plt.plot(xs, [row["dict_ns"] for row in results], marker="o", label="Python dict")
     plt.plot(xs, [row["sorted_ns"] for row in results], marker="o", label="Sorted list / binary search")
+    plt.plot(xs, [row["sqlite_ns"] for row in results], marker="o", label="SQLite INTEGER PRIMARY KEY")
     plt.plot(xs, [row["linear_ns"] for row in results], marker="o", label="Linear scan")
     plt.xscale("log")
     plt.yscale("log")
     plt.xlabel("Number of records (N)")
     plt.ylabel("Median lookup latency (ns/query)")
-    plt.title("BDR lookup scaling benchmark")
+    plt.title("BDR point-lookup scaling benchmark")
     plt.grid(True, which="both", alpha=0.25)
     plt.legend()
     plt.tight_layout()
