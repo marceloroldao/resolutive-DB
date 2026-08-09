@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use, benchmark, evaluate, or discuss BDR, please cite this software/research release."
+title: "Banco de Dados Resolutivo (BDR) / Resolutive Database Engine"
+version: "0.1.0"
+date-released: 2026-08-09
+type: software
+authors:
+  - family-names: "Matos"
+    given-names: "Marcelo Roldão"
+    orcid: "https://orcid.org/0009-0003-6075-4680"
+repository-code: "https://github.com/marceloroldao/resolutive-DB"
+url: "https://github.com/marceloroldao/resolutive-DB"
+abstract: >-
+  BDR is an experimental persistent key-value database research project investigating
+  deterministic resolutive addressing, local partitioning, adaptive data structures,
+  write-ahead logging, atomic checkpoints, crash recovery, and reproducible performance
+  evaluation. Version 0.1.0 is a Research Preview and does not claim production readiness
+  or strict worst-case O(1) complexity for the complete engine.
+keywords:
+  - resolutive database
+  - key-value database
+  - persistent storage
+  - write-ahead log
+  - crash recovery
+  - adaptive partitioning
+  - benchmarking
+  - reproducible research
+license: other
