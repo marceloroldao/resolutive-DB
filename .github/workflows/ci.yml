@@ -1,0 +1,44 @@
+name: BDR CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run tests
+        run: pytest -q
+
+  cpp-compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile key C++ benchmarks
+        run: |
+          set -eux
+          g++ -O3 -std=c++17 -pthread benchmarks/bdr_v4_cpp_robinhood.cpp -o /tmp/bdr_v4
+          g++ -O3 -std=c++17 -pthread benchmarks/bdr_v4_multithread.cpp -o /tmp/bdr_v4_mt
+          g++ -O3 -std=c++17 -pthread benchmarks/bdr_v5_compact_memory.cpp -o /tmp/bdr_v5
+          g++ -O3 -std=c++17 -pthread benchmarks/bdr_v6_adaptive_hybrid.cpp -o /tmp/bdr_v6
+      - name: Smoke-run compiled benchmarks
+        run: |
+          /tmp/bdr_v4 > /tmp/bdr_v4.csv
+          /tmp/bdr_v5 > /tmp/bdr_v5.csv
+          /tmp/bdr_v6 > /tmp/bdr_v6.csv
+          head -n 5 /tmp/bdr_v4.csv
+          head -n 5 /tmp/bdr_v5.csv
+          head -n 5 /tmp/bdr_v6.csv
