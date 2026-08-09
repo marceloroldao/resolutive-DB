@@ -1,0 +1,35 @@
+BDR ACADEMIC AND NON-COMMERCIAL RESEARCH LICENSE v1.0
+
+Copyright (c) 2026 ETBRA Tecnologias. All rights reserved.
+
+1. Academic and Non-Commercial Grant
+Permission is granted, without charge, to universities, public research institutions, schools, students, educators, and non-profit research organizations to use, copy, modify, and execute this Software solely for education, academic research, evaluation, benchmarking, and other non-commercial purposes.
+
+2. Attribution
+Redistributions or publications derived from the Software must retain this copyright notice, this license text, and reasonable attribution to the Banco de Dados Resolutivo (BDR) / Resolutive Database Engine project and ETBRA Tecnologias.
+
+3. Commercial Use Prohibited Without Separate License
+No person or entity may use the Software, in whole or in part, for commercial activity without a separate written commercial license from ETBRA Tecnologias. Commercial activity includes, without limitation: use by for-profit companies; use in commercial products or paid services; production deployment; SaaS or hosted services; proprietary integrations; consulting deliverables sold to third parties; startup products; internal business operations intended to support commercial activity; and resale, sublicensing, or monetization of the Software or derivatives.
+
+4. No Patent License
+This license grants copyright permissions only. No patent rights, patent licenses, patent covenants, trademark rights, trade-secret rights, or other intellectual-property rights are granted, whether by implication, estoppel, or otherwise. Any patent rights associated with the Banco de Dados Resolutivo, Endereçamento Densitário Harmônico, Resolutive Database Engine, or related technology are expressly reserved by their respective owners.
+
+5. Research Results and Benchmark Integrity
+Academic users may publish benchmark and research results. Results must not be represented as proving asymptotic complexity, physical validity, or performance guarantees beyond what the experiment actually establishes.
+
+6. Redistribution
+Source redistribution for permitted non-commercial purposes is allowed only under this same license and without removing restrictions. You may not relicense the Software under an open-source license that grants broader commercial rights.
+
+7. Commercial Licensing
+For commercial licensing, production use, proprietary integration, or other permissions not expressly granted here, contact ETBRA Tecnologias.
+
+8. Disclaimer of Warranty
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, PERFORMANCE, SECURITY, OR FITNESS FOR PRODUCTION USE.
+
+9. Limitation of Liability
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE COPYRIGHT HOLDERS AND CONTRIBUTORS SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM OR RELATED TO THE SOFTWARE OR ITS USE.
+
+10. Termination
+Any violation of this license automatically terminates the permissions granted herein. Upon termination, all use, copying, modification, distribution, and deployment must cease unless separately authorized in writing.
+
+This is a source-available, non-commercial license. It is not represented as an OSI-approved open-source license.
