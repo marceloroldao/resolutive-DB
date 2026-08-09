@@ -1,0 +1,21 @@
+// BDR V6 adaptive hybrid benchmark
+// Each rho_R partition selects Compact or Robin Hood based on local occupancy.
+// Standalone C++17 benchmark; compile with: g++ -O3 -std=c++17 bdr_v6_adaptive_hybrid.cpp -o bdr_v6
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <iostream>
+#include <random>
+#include <string>
+#include <vector>
+using Clock=std::chrono::steady_clock;
+static inline uint64_t mix64(uint64_t x){x+=0x9e3779b97f4a7c15ULL;x=(x^(x>>30))*0xbf58476d1ce4e5b9ULL;x=(x^(x>>27))*0x94d049bb133111ebULL;return x^(x>>31);} static inline uint64_t fnv(const std::string&s,uint64_t h){for(unsigned char c:s){h^=c;h*=1099511628211ULL;}return h;}
+struct A{uint32_t rho,phi;uint64_t sig;}; struct Enc{uint32_t m,p;A operator()(const std::string&k)const{uint64_t a=mix64(fnv(k,1469598103934665603ULL)),b=mix64(fnv(k,1099511628211ULL));return{uint32_t(a%m),uint32_t(b%p),mix64(a^(b<<1))};}}; static uint64_t lk(const A&a){return mix64((uint64_t(a.phi)<<48)^a.sig);} struct E{uint64_t key,val;};
+struct Compact{std::vector<E>v;void build(std::vector<E>&&x){v=std::move(x);std::sort(v.begin(),v.end(),[](auto&a,auto&b){return a.key<b.key;});}bool get(uint64_t k,uint64_t&o)const{auto it=std::lower_bound(v.begin(),v.end(),k,[](const E&e,uint64_t q){return e.key<q;});if(it==v.end()||it->key!=k)return false;o=it->val;return true;}size_t bytes()const{return v.capacity()*sizeof(E);}};
+struct Slot{uint64_t key=0,val=0;uint32_t d=0;bool used=false;};struct RH{std::vector<Slot>s;size_t mask=0;RH(){}explicit RH(size_t c):s(c),mask(c-1){}void ins(uint64_t k,uint64_t v){size_t i=mix64(k)&mask;Slot cur{k,v,0,true};for(;;){auto&x=s[i];if(!x.used){x=cur;return;}if(x.key==cur.key){x.val=v;return;}if(x.d<cur.d)std::swap(x,cur);i=(i+1)&mask;++cur.d;}}bool get(uint64_t k,uint64_t&o)const{size_t i=mix64(k)&mask;uint32_t d=0;for(;;){auto&x=s[i];if(!x.used||x.d<d)return false;if(x.key==k){o=x.val;return true;}i=(i+1)&mask;++d;}}size_t bytes()const{return s.capacity()*sizeof(Slot);}};
+struct Part{bool robin=false;Compact c;RH r;};
+class Hybrid{Enc enc;std::vector<Part>parts;size_t threshold;public:Hybrid(uint32_t m,uint32_t ph,size_t t):enc{m,ph},parts(m),threshold(t){}void build(const std::vector<std::string>&ks){std::vector<std::vector<E>>tmp(parts.size());for(size_t i=0;i<ks.size();++i){A a=enc(ks[i]);tmp[a.rho].push_back({lk(a),i});}for(size_t j=0;j<parts.size();++j){if(tmp[j].size()>=threshold){parts[j].robin=true;size_t cap=8;while(cap<(size_t)std::ceil(tmp[j].size()/0.70))cap<<=1;parts[j].r=RH(cap);for(auto&e:tmp[j])parts[j].r.ins(e.key,e.val);}else parts[j].c.build(std::move(tmp[j]));}}bool get(const std::string&k,uint64_t&o)const{A a=enc(k);auto&pt=parts[a.rho];uint64_t x=lk(a);return pt.robin?pt.r.get(x,o):pt.c.get(x,o);}size_t bytes()const{size_t z=parts.capacity()*sizeof(Part);for(auto&pt:parts)z+=pt.robin?pt.r.bytes():pt.c.bytes();return z;}size_t robin_parts()const{size_t n=0;for(auto&pt:parts)n+=pt.robin;return n;}};
+struct R{double mops,p99;};template<class D>R bench(D&d,const std::vector<std::string>&ks,bool zipf){std::mt19937_64 rng(42);const size_t Q=300000;std::vector<double>lat;lat.reserve(5000);volatile uint64_t sink=0;auto st=Clock::now();for(size_t i=0;i<Q;++i){size_t idx;if(zipf){double u=std::generate_canonical<double,64>(rng);idx=(size_t)(std::pow(u,3.0)*ks.size());if(idx>=ks.size())idx=ks.size()-1;}else idx=rng()%ks.size();auto t0=i<5000?Clock::now():Clock::time_point{};uint64_t o=0;d.get(ks[idx],o);sink^=o;if(i<5000)lat.push_back(std::chrono::duration<double,std::nano>(Clock::now()-t0).count()/1000.0);}double sec=std::chrono::duration<double>(Clock::now()-st).count();std::sort(lat.begin(),lat.end());return{Q/sec/1e6,lat[(size_t)(lat.size()*0.99)-1]};}
+int main(){constexpr size_t N=500000;constexpr uint32_t M=10000,PH=65536;std::vector<std::string>ks;ks.reserve(N);for(size_t i=0;i<N;++i){char b[48];std::snprintf(b,sizeof(b),"ETBRA_RESOLUTIVE_KEY_%08zu",i);ks.emplace_back(b);}std::cout<<"threshold,robin_parts,distribution,mops,p99_us,bytes_per_record\n";for(size_t t:{32ul,48ul,64ul,96ul}){Hybrid h(M,PH,t);h.build(ks);for(bool z:{false,true}){auto r=bench(h,ks,z);std::cout<<t<<','<<h.robin_parts()<<','<<(z?"zipf":"uniform")<<','<<r.mops<<','<<r.p99<<','<<double(h.bytes())/N<<'\n';}}}
