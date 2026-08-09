@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "resolutive-db"
+version = "0.0.0.dev0"
+description = "Experimental Resolutive Database Engine (BDR) research prototype"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "Marcelo Roldão Matos" }
+]
+license = { file = "LICENSE" }
+
+[tool.setuptools]
+packages = ["bdr"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
