@@ -24,6 +24,18 @@ jobs:
       - name: Run tests
         run: pytest -q
 
+  sqlite-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install package
+        run: pip install -e .
+      - name: Run durability-parity benchmark
+        run: python benchmarks/bdr_v01_sqlite_parity.py
+
   cpp-compile:
     runs-on: ubuntu-latest
     steps:
