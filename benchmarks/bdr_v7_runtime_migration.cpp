@@ -1,0 +1,27 @@
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <iostream>
+#include <random>
+#include <string>
+#include <vector>
+using Clock=std::chrono::steady_clock;
+static inline uint64_t mix64(uint64_t x){x+=0x9e3779b97f4a7c15ULL;x=(x^(x>>30))*0xbf58476d1ce4e5b9ULL;x=(x^(x>>27))*0x94d049bb133111ebULL;return x^(x>>31);} 
+static inline uint64_t fnv(const std::string&s,uint64_t h){for(unsigned char c:s){h^=c;h*=1099511628211ULL;}return h;}
+struct A{uint32_t rho,phi;uint64_t sig;}; struct Enc{uint32_t m,p;A operator()(const std::string&k)const{uint64_t a=mix64(fnv(k,1469598103934665603ULL)),b=mix64(fnv(k,1099511628211ULL));return{uint32_t(a%m),uint32_t(b%p),mix64(a^(b<<1))};}}; static uint64_t lk(const A&a){return mix64((uint64_t(a.phi)<<48)^a.sig);} 
+struct E{uint64_t key,val;};
+struct Compact{std::vector<E>v;void sortit(){std::sort(v.begin(),v.end(),[](auto&a,auto&b){return a.key<b.key;});}bool get(uint64_t k,uint64_t&o)const{auto it=std::lower_bound(v.begin(),v.end(),k,[](const E&e,uint64_t q){return e.key<q;});if(it==v.end()||it->key!=k)return false;o=it->val;return true;}void upsert(uint64_t k,uint64_t val){auto it=std::lower_bound(v.begin(),v.end(),k,[](const E&e,uint64_t q){return e.key<q;});if(it!=v.end()&&it->key==k){it->val=val;return;}v.insert(it,{k,val});}size_t bytes()const{return v.capacity()*sizeof(E);}};
+struct Slot{uint64_t key=0,val=0;uint32_t d=0;bool used=false;};struct RH{std::vector<Slot>s;size_t mask=0;size_t sz=0;RH(){}explicit RH(size_t c):s(c),mask(c-1){}void ins(uint64_t k,uint64_t v){size_t i=mix64(k)&mask;Slot cur{k,v,0,true};for(;;){auto&x=s[i];if(!x.used){x=cur;++sz;return;}if(x.key==cur.key){x.val=v;return;}if(x.d<cur.d)std::swap(x,cur);i=(i+1)&mask;++cur.d;}}bool get(uint64_t k,uint64_t&o)const{size_t i=mix64(k)&mask;uint32_t d=0;for(;;){auto&x=s[i];if(!x.used||x.d<d)return false;if(x.key==k){o=x.val;return true;}i=(i+1)&mask;++d;}}size_t bytes()const{return s.capacity()*sizeof(Slot);}};
+struct Part{bool robin=false;Compact c;RH r;size_t writes=0,ops=0;};
+class RuntimeHybrid{Enc enc;std::vector<Part>parts;size_t occ_threshold;double write_threshold;double migration_s=0;size_t migrations=0;
+ void migrate(Part&pt){auto t0=Clock::now();size_t cap=8;while(cap<(size_t)std::ceil(std::max<size_t>(pt.c.v.size(),8)/0.70))cap<<=1;RH nr(cap);for(auto&e:pt.c.v)nr.ins(e.key,e.val);pt.r=std::move(nr);pt.c.v.clear();pt.c.v.shrink_to_fit();pt.robin=true;migration_s+=std::chrono::duration<double>(Clock::now()-t0).count();++migrations;}
+public:RuntimeHybrid(uint32_t m,uint32_t ph,size_t ot,double wt):enc{m,ph},parts(m),occ_threshold(ot),write_threshold(wt){}
+ void build(const std::vector<std::string>&ks,size_t initial_n){for(size_t i=0;i<initial_n;++i){A a=enc(ks[i]);parts[a.rho].c.v.push_back({lk(a),i});}for(auto&pt:parts)pt.c.sortit();}
+ bool get(const std::string&k,uint64_t&o){A a=enc(k);auto&pt=parts[a.rho];++pt.ops;return pt.robin?pt.r.get(lk(a),o):pt.c.get(lk(a),o);}
+ void upsert(const std::string&k,uint64_t v){A a=enc(k);auto&pt=parts[a.rho];++pt.ops;++pt.writes;uint64_t x=lk(a);if(pt.robin){pt.r.ins(x,v);return;}pt.c.upsert(x,v);double wr=pt.ops?double(pt.writes)/pt.ops:0.0;if(pt.c.v.size()>=occ_threshold || (pt.ops>=32 && wr>=write_threshold))migrate(pt);}
+ double migration_seconds()const{return migration_s;}size_t migration_count()const{return migrations;}size_t bytes()const{size_t z=parts.capacity()*sizeof(Part);for(auto&pt:parts)z+=pt.robin?pt.r.bytes():pt.c.bytes();return z;}size_t robin_parts()const{size_t n=0;for(auto&pt:parts)n+=pt.robin;return n;}};
+struct Res{double mops,p99;};
+template<class DB>Res run(DB&db,const std::vector<std::string>&ks,size_t begin,size_t end,size_t ops,double wr,uint64_t seed){std::mt19937_64 rng(seed);std::vector<double>lat;lat.reserve(5000);volatile uint64_t sink=0;auto st=Clock::now();for(size_t i=0;i<ops;++i){size_t idx=begin+(rng()%(end-begin));bool w=std::generate_canonical<double,64>(rng)<wr;auto t0=i<5000?Clock::now():Clock::time_point{};uint64_t o=0;if(w)db.upsert(ks[idx],idx+i);else db.get(ks[idx],o);sink^=o;if(i<5000)lat.push_back(std::chrono::duration<double,std::nano>(Clock::now()-t0).count()/1000.0);}double sec=std::chrono::duration<double>(Clock::now()-st).count();std::sort(lat.begin(),lat.end());return{ops/sec/1e6,lat[(size_t)(lat.size()*0.99)-1]};}
+int main(){constexpr size_t N=500000,INITIAL=200000;constexpr uint32_t M=10000,PH=65536;std::vector<std::string>ks;ks.reserve(N);for(size_t i=0;i<N;++i){char b[48];std::snprintf(b,sizeof(b),"ETBRA_RESOLUTIVE_KEY_%08zu",i);ks.emplace_back(b);}std::cout<<"threshold,write_threshold,stage,mops,p99_us,migrations,migration_ms,robin_parts,bytes_per_record\n";for(size_t t:{48ul,64ul})for(double wt:{0.10,0.25}){RuntimeHybrid h(M,PH,t,wt);h.build(ks,INITIAL);auto a=run(h,ks,0,INITIAL,150000,0.0,42);std::cout<<t<<','<<wt<<",read_before,"<<a.mops<<','<<a.p99<<','<<h.migration_count()<<','<<h.migration_seconds()*1000<<','<<h.robin_parts()<<','<<double(h.bytes())/INITIAL<<'\n';auto b=run(h,ks,0,N,300000,0.10,43);std::cout<<t<<','<<wt<<",mixed_migrate,"<<b.mops<<','<<b.p99<<','<<h.migration_count()<<','<<h.migration_seconds()*1000<<','<<h.robin_parts()<<','<<double(h.bytes())/N<<'\n';auto c=run(h,ks,0,N,300000,0.10,44);std::cout<<t<<','<<wt<<",mixed_after,"<<c.mops<<','<<c.p99<<','<<h.migration_count()<<','<<h.migration_seconds()*1000<<','<<h.robin_parts()<<','<<double(h.bytes())/N<<'\n';}}
