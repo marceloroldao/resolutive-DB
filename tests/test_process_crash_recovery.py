@@ -21,17 +21,25 @@ from pathlib import Path
 from bdr.persistent_engine import PersistentBDR
 root = Path(sys.argv[1])
 marker = Path(sys.argv[2])
+marker_tmp = marker.with_suffix(".tmp")
 db = PersistentBDR(root, segment_ops=64, group_commit_ops=16)
 for i in range(1000000):
-    # Every 8th write is explicitly durable. The marker is fsynced only after
-    # the database fsync completes, so it is a lower bound on recoverable state.
+    # Every 8th write is explicitly durable. The marker is published atomically
+    # only after the database fsync completes, so it is a lower bound on the
+    # state that must survive SIGKILL.
     durable = (i % 8 == 0)
     db.put(f"k{i}", i, durable=durable)
     if durable:
-        with open(marker, "w") as fh:
+        with open(marker_tmp, "w") as fh:
             fh.write(str(i))
             fh.flush()
             os.fsync(fh.fileno())
+        os.replace(marker_tmp, marker)
+        dir_fd = os.open(marker.parent, getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
     time.sleep(0.00005)
 '''
 
@@ -41,10 +49,12 @@ for i in range(1000000):
     )
 
     deadline = time.time() + 10
+    observed = None
     while time.time() < deadline:
         if marker.exists() and marker.stat().st_size:
             try:
-                if int(marker.read_text()) >= 80:
+                observed = int(marker.read_text())
+                if observed >= 80:
                     break
             except ValueError:
                 pass
@@ -59,6 +69,8 @@ for i in range(1000000):
     assert proc.returncode < 0
 
     durable_through = int(marker.read_text())
+    assert durable_through >= (observed or 0)
+
     reopened = PersistentBDR(root, segment_ops=64, group_commit_ops=16)
     try:
         # Every write through the externally fsynced marker must survive.
