@@ -11,9 +11,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Build C++ benchmark
+      - name: Build C++ benchmarks
         run: |
           g++ -O3 -std=c++20 benchmarks/bdr_v18_hierarchical_resolutive.cpp -o bdr_v18
+          g++ -O3 -std=c++20 benchmarks/bdr_v18_fingerprint_sweep.cpp -o bdr_v18_fp
       - name: Run reproducible benchmark matrix
         run: |
           mkdir -p benchmark-results/hierarchical
@@ -21,6 +22,7 @@ jobs:
             ./bdr_v18 --n 100000 --q 50000 --buckets 2048 > benchmark-results/hierarchical/run_${rep}.csv
           done
           ./bdr_v18 --n 100000 --q 50000 --buckets 64 --workload sequential > benchmark-results/hierarchical/collapse_buckets64.csv
+          ./bdr_v18_fp 500000 > benchmark-results/hierarchical/fingerprint_64_96_128.csv
       - name: Optional perf counters
         continue-on-error: true
         run: |
@@ -32,6 +34,7 @@ jobs:
         run: |
           {
             echo "date=$(date -u +%FT%TZ)"
+            echo "seed=0xB0D2A018"
             echo "runner=${RUNNER_OS}"
             uname -a
             g++ --version | head -n 1
