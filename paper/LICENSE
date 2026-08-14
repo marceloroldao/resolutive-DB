@@ -1,0 +1,18 @@
+BDR SCIENTIFIC MANUSCRIPT LICENSE
+
+The scientific manuscript located under paper/ and deposited as the preprint:
+
+"Banco de Dados Resolutivo (BDR): Arquitetura Experimental de Endereçamento Densitário, Persistência Transacional e Avaliação Reprodutível"
+DOI: 10.5281/zenodo.21937842
+
+is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0).
+
+Copyright (c) 2026 Marcelo Roldão Matos.
+
+This manuscript license applies to the scientific article and its manuscript source only. It does NOT license the BDR software, source code, algorithms as implemented in software, binaries, test infrastructure, or other software artifacts in this repository.
+
+The BDR software is separately governed by the repository-root LICENSE: BDR Academic and Non-Commercial Research License v1.0. Commercial software use requires a separate written license from ETBRA Tecnologias.
+
+No patent license is granted by this manuscript license or by publication of the preprint.
+
+Creative Commons license reference: CC BY-NC-SA 4.0.
