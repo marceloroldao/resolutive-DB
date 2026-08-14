@@ -15,11 +15,13 @@ jobs:
         run: |
           g++ -O3 -std=c++20 benchmarks/bdr_v18_hierarchical_resolutive.cpp -o bdr_v18
           g++ -O3 -std=c++20 benchmarks/bdr_v18_fingerprint_sweep.cpp -o bdr_v18_fp
+          g++ -O3 -std=c++20 benchmarks/bdr_v18_matched_hash_controls.cpp -o bdr_v18_controls
       - name: Run reproducible benchmark matrix
         run: |
           mkdir -p benchmark-results/hierarchical
           for rep in 1 2 3; do
             ./bdr_v18 --n 100000 --q 50000 --buckets 2048 > benchmark-results/hierarchical/run_${rep}.csv
+            ./bdr_v18_controls 100000 > benchmark-results/hierarchical/matched_controls_${rep}.csv
           done
           ./bdr_v18 --n 100000 --q 50000 --buckets 64 --workload sequential > benchmark-results/hierarchical/collapse_buckets64.csv
           ./bdr_v18_fp 500000 > benchmark-results/hierarchical/fingerprint_64_96_128.csv
