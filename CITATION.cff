@@ -1,9 +1,8 @@
 cff-version: 1.2.0
-message: "If you use, benchmark, evaluate, or discuss BDR, please cite this software/research release."
+message: "If you use the BDR software, cite this software release and the associated scientific preprint where appropriate."
 title: "Banco de Dados Resolutivo (BDR) / Resolutive Database Engine"
 version: "0.1.0"
 date-released: 2026-08-09
-doi: "10.5281/zenodo.21937842"
 type: software
 authors:
   - family-names: "Matos"
@@ -27,3 +26,12 @@ keywords:
   - benchmarking
   - reproducible research
 license: other
+preferred-citation:
+  type: article
+  title: "Banco de Dados Resolutivo (BDR): Arquitetura Experimental de Endereçamento Densitário, Persistência Transacional e Avaliação Reprodutível"
+  authors:
+    - family-names: "Matos"
+      given-names: "Marcelo Roldão"
+      orcid: "https://orcid.org/0009-0003-6075-4680"
+  year: 2026
+  doi: "10.5281/zenodo.21937842"
