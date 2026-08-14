@@ -17,7 +17,7 @@
 #include <rocksdb/write_batch.h>
 
 using Clock = std::chrono::steady_clock;
-static constexpr int N = 20000;
+static constexpr int N = 5000;
 
 struct Result { std::string engine; int batch; double put_ops; double get_ops; };
 static std::string key(int i){ char b[32]; std::snprintf(b,sizeof(b),"K%08d",i); return b; }
