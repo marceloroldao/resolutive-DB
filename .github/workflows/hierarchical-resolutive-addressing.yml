@@ -11,6 +11,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Install market benchmark dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev liblmdb-dev libleveldb-dev librocksdb-dev
       - name: Build C++ benchmarks
         run: |
           g++ -O3 -std=c++20 benchmarks/bdr_v18_hierarchical_resolutive.cpp -o bdr_v18
@@ -19,6 +23,7 @@ jobs:
           g++ -O3 -std=c++20 benchmarks/bdr_v18_partitioned_robinhood_control.cpp -o bdr_v18_prh
           g++ -O3 -std=c++20 benchmarks/bdr_v19_adaptive_local_engine.cpp -o bdr_v19
           g++ -O3 -std=c++20 benchmarks/bdr_v20_density_target_engine.cpp -o bdr_v20
+          g++ -O3 -std=c++20 benchmarks/bdr_v21_end_to_end_market.cpp -o bdr_v21 -lsqlite3 -llmdb -lleveldb -lrocksdb -lpthread -ldl -lz -lbz2 -llz4 -lzstd -lsnappy
       - name: Run reproducible benchmark matrix
         run: |
           mkdir -p benchmark-results/hierarchical
@@ -28,8 +33,10 @@ jobs:
             ./bdr_v18_prh 100000 > benchmark-results/hierarchical/partitioned_robinhood_${rep}.csv
             ./bdr_v19 100000 2048 > benchmark-results/hierarchical/v19_adaptive_${rep}.csv
             ./bdr_v20 100000 > benchmark-results/hierarchical/v20_density_${rep}.csv
+            ./bdr_v21 10000 > benchmark-results/hierarchical/v21_market_${rep}.csv
           done
           ./bdr_v20 1000000 > benchmark-results/hierarchical/v20_density_1m.csv
+          ./bdr_v21 50000 > benchmark-results/hierarchical/v21_market_50k.csv
           ./bdr_v19 100000 64 > benchmark-results/hierarchical/v19_collapse_64buckets.csv
           ./bdr_v18 --n 100000 --q 50000 --buckets 64 --workload sequential > benchmark-results/hierarchical/collapse_buckets64.csv
           ./bdr_v18_fp 500000 > benchmark-results/hierarchical/fingerprint_64_96_128.csv
@@ -50,6 +57,8 @@ jobs:
             echo "runner=${RUNNER_OS}"
             uname -a
             g++ --version | head -n 1
+            sqlite3 --version || true
+            dpkg-query -W -f='${Package} ${Version}\n' liblmdb0 libleveldb1d librocksdb9 2>/dev/null || true
             lscpu | grep -E 'Model name|CPU\(s\)|Thread|Core|Socket' || true
           } > benchmark-results/hierarchical/environment.txt
       - uses: actions/upload-artifact@v4
