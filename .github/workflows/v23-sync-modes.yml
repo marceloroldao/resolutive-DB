@@ -1,0 +1,19 @@
+name: v23 durable sync modes
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+  workflow_dispatch:
+jobs:
+  sync-benchmark:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: g++ -O3 -std=c++20 benchmarks/bdr_v23_sync_modes.cpp -o bdr_v23 -lz
+      - run: |
+          mkdir -p benchmark-results/v23
+          for rep in 1 2 3; do ./bdr_v23 20000 > benchmark-results/v23/run_${rep}.csv; done
+          ./bdr_v23 100000 > benchmark-results/v23/run_100k.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v23-sync-mode-results
+          path: benchmark-results/v23/
