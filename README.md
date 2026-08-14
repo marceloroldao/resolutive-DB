@@ -2,7 +2,8 @@
 
 **BDR v0.1.0 — Experimental / Research Preview**
 
-**Zenodo DOI:** 10.5281/zenodo.21937842
+**Software DOI (v0.1.0):** 10.5281/zenodo.21938148  
+**Scientific preprint DOI:** 10.5281/zenodo.21937842
 
 Projeto experimental da **ETBRA Tecnologias** para investigar um mecanismo de endereçamento direto inspirado no paradigma de **Endereçamento Densitário Harmônico**, representado pelo espaço resolutivo
 
@@ -20,11 +21,17 @@ onde, nesta implementação computacional:
 
 > **Status científico/engenharia:** v0.1.0 é uma versão experimental/research preview, publicada e citável via Zenodo. Os nomes e conceitos resolutivos são usados como hipótese de arquitetura. O repositório não afirma que a interpretação física subjacente esteja experimentalmente validada nem que o motor completo possua complexidade O(1) garantida no pior caso.
 
-## Publicação científica
+## Publicações e citação
 
-**Matos, Marcelo Roldão (2026). Banco de Dados Resolutivo (BDR): Arquitetura Experimental de Endereçamento Densitário, Persistência Transacional e Avaliação Reprodutível. Version 0.1.0. Zenodo. DOI: 10.5281/zenodo.21937842.**
+### Software BDR v0.1.0
 
-O preprint, código, testes e benchmarks formam a baseline científica da versão v0.1.0. Resultados futuros devem identificar explicitamente a versão/commit utilizado para preservar reprodutibilidade.
+**Matos, Marcelo Roldão (2026). Banco de Dados Resolutivo (BDR) / Resolutive Database Engine. Version 0.1.0. Zenodo. DOI: 10.5281/zenodo.21938148.**
+
+### Preprint científico
+
+**Matos, Marcelo Roldão (2026). Banco de Dados Resolutivo (BDR): Arquitetura Experimental de Endereçamento Densitário, Persistência Transacional e Avaliação Reprodutível. Zenodo. DOI: 10.5281/zenodo.21937842.**
+
+O software e o preprint são objetos citáveis separados. A tag GitHub `v0.1.0` e o DOI de software formam a baseline computacional desta versão; o preprint documenta a arquitetura, metodologia e resultados científicos associados.
 
 ## Objetivo
 
@@ -146,4 +153,5 @@ A v0.1.0 passa a ser a baseline publicada. Evoluções futuras serão comparadas
 ORCID: 0009-0003-6075-4680  
 ETBRA Tecnologias — 2026
 
-**DOI:** 10.5281/zenodo.21937842
+**Software DOI:** 10.5281/zenodo.21938148  
+**Preprint DOI:** 10.5281/zenodo.21937842
