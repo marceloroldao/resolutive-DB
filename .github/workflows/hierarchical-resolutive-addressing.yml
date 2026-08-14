@@ -1,0 +1,43 @@
+name: hierarchical resolutive addressing experiment
+
+on:
+  push:
+    branches:
+      - experiment/hierarchical-resolutive-addressing
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build C++ benchmark
+        run: |
+          g++ -O3 -std=c++20 benchmarks/bdr_v18_hierarchical_resolutive.cpp -o bdr_v18
+      - name: Run reproducible benchmark matrix
+        run: |
+          mkdir -p benchmark-results/hierarchical
+          for rep in 1 2 3; do
+            ./bdr_v18 --n 100000 --q 50000 --buckets 2048 > benchmark-results/hierarchical/run_${rep}.csv
+          done
+          ./bdr_v18 --n 100000 --q 50000 --buckets 64 --workload sequential > benchmark-results/hierarchical/collapse_buckets64.csv
+      - name: Optional perf counters
+        continue-on-error: true
+        run: |
+          perf stat -e cycles,instructions,cache-misses,branches,branch-misses \
+            ./bdr_v18 --n 100000 --q 50000 --buckets 2048 --workload hotrho \
+            > benchmark-results/hierarchical/perf_hotrho.csv \
+            2> benchmark-results/hierarchical/perf_hotrho.txt
+      - name: Environment metadata
+        run: |
+          {
+            echo "date=$(date -u +%FT%TZ)"
+            echo "runner=${RUNNER_OS}"
+            uname -a
+            g++ --version | head -n 1
+            lscpu | grep -E 'Model name|CPU\(s\)|Thread|Core|Socket' || true
+          } > benchmark-results/hierarchical/environment.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hierarchical-resolutive-addressing-results
+          path: benchmark-results/hierarchical/
