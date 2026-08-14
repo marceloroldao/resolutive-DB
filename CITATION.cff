@@ -3,6 +3,7 @@ message: "If you use, benchmark, evaluate, or discuss BDR, please cite this soft
 title: "Banco de Dados Resolutivo (BDR) / Resolutive Database Engine"
 version: "0.1.0"
 date-released: 2026-08-09
+doi: "10.5281/zenodo.21937842"
 type: software
 authors:
   - family-names: "Matos"
