@@ -37,7 +37,7 @@ static RecoveryResult recover(const std::string&path,off_t logical_end=-1){Recov
 static bool corrupt_byte(const std::string&path,off_t pos){int fd=::open(path.c_str(),O_RDWR);if(fd<0)return false;unsigned char b=0;if(::pread(fd,&b,1,pos)!=1){::close(fd);return false;}b^=0x5A;bool ok=::pwrite(fd,&b,1,pos)==1&&::fdatasync(fd)==0;::close(fd);return ok;}
 
 int main(int argc,char**argv){int N=argc>1?std::stoi(argv[1]):100000;int batch=argc>2?std::stoi(argv[2]):128;std::string path="v26.wal";std::filesystem::remove(path);off_t used=0;{
- WAL26 w(path,(size_t)N*96+4096);for(int i=0;i<N;++i){w.put(K(i),V(i));if((i+1)%batch==0)w.sync();}w.sync();used=w.used();}
+ WAL26 w(path.c_str(),(size_t)N*96+4096);for(int i=0;i<N;++i){w.put(K(i),V(i));if((i+1)%batch==0)w.sync();}w.sync();used=w.used();}
  auto clean=recover(path,used);size_t clean_err=0;for(int i=0;i<N;++i){auto it=clean.kv.find(K(i));if(it==clean.kv.end()||it->second!=V(i))clean_err++;}
  off_t trunc_end=std::max<off_t>(0,used-7);auto trunc=recover(path,trunc_end);
  std::filesystem::copy_file(path,"v26_corrupt.wal",std::filesystem::copy_options::overwrite_existing);off_t corrupt_pos=used/2;corrupt_byte("v26_corrupt.wal",corrupt_pos);auto corrupt=recover("v26_corrupt.wal",used);
