@@ -1,0 +1,20 @@
+name: v31 ticketed batch sweep
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+  workflow_dispatch:
+jobs:
+  sweep:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: g++ -O3 -std=c++20 benchmarks/bdr_v30_ticketed_pipeline.cpp -o bdr_v31 -lz -lpthread
+      - run: |
+          mkdir -p benchmark-results/v31
+          ./bdr_v31 50000 128 > benchmark-results/v31/batch128.csv
+          ./bdr_v31 50000 256 > benchmark-results/v31/batch256.csv
+          ./bdr_v31 50000 512 > benchmark-results/v31/batch512.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v31-ticketed-batch-sweep
+          path: benchmark-results/v31/
