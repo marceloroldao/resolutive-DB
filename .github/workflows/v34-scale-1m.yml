@@ -1,0 +1,20 @@
+name: v34 scale 1m
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+  workflow_dispatch:
+jobs:
+  scale:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev liblmdb-dev libleveldb-dev librocksdb-dev libsnappy-dev libbz2-dev liblz4-dev libzstd-dev
+      - run: g++ -O3 -std=c++20 benchmarks/bdr_v34_scale_1m.cpp -o bdr_v34 -lsqlite3 -llmdb -lleveldb -lrocksdb -lpthread -ldl -lz -lbz2 -llz4 -lzstd -lsnappy
+      - run: |
+          mkdir -p benchmark-results/v34
+          ./bdr_v34 1000000 128 8 | tee benchmark-results/v34/scale_1m.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v34-scale-1m-results
+          path: benchmark-results/v34/
