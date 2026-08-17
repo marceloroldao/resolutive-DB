@@ -1,0 +1,32 @@
+name: v33 ticketed SIGKILL
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+  workflow_dispatch:
+jobs:
+  crash:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: g++ -O3 -std=c++20 benchmarks/bdr_v33_ticketed_sigkill.cpp -o bdr_v33 -lz -lpthread
+      - run: |
+          mkdir -p benchmark-results/v33
+          echo "delay_ms,good,last_seq,bad,tail_stop" > benchmark-results/v33/sigkill.csv
+          for d in 10 20 50 100; do
+            f="v33_${d}.wal"
+            ./bdr_v33 writer "$f" 2000000 8 128 512 &
+            pid=$!
+            python3 - <<PY
+import time
+time.sleep(${d}/1000)
+PY
+            kill -9 $pid 2>/dev/null || true
+            wait $pid 2>/dev/null || true
+            r=$(./bdr_v33 recover "$f")
+            echo "$d,$r" >> benchmark-results/v33/sigkill.csv
+          done
+          cat benchmark-results/v33/sigkill.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v33-ticketed-sigkill-results
+          path: benchmark-results/v33/
