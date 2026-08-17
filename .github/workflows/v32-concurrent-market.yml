@@ -1,0 +1,21 @@
+name: v32 concurrent market
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+  workflow_dispatch:
+jobs:
+  market:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev liblmdb-dev libleveldb-dev librocksdb-dev libsnappy-dev liblz4-dev libzstd-dev libbz2-dev zlib1g-dev
+      - run: g++ -O3 -std=c++20 benchmarks/bdr_v32_concurrent_market.cpp -o bdr_v32 -lsqlite3 -llmdb -lleveldb -lrocksdb -lpthread -ldl -lz -lbz2 -llz4 -lzstd -lsnappy
+      - run: |
+          mkdir -p benchmark-results/v32
+          ./bdr_v32 50000 128 > benchmark-results/v32/run.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v32-concurrent-market-results
+          path: benchmark-results/v32/
