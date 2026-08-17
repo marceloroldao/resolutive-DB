@@ -1,0 +1,23 @@
+name: v38 BDR3 checkpoint
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'benchmarks/bdr_v38_checkpoint_bdr3.cpp'
+      - '.github/workflows/v38-checkpoint-bdr3.yml'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: g++ -O3 -std=c++20 benchmarks/bdr_v38_checkpoint_bdr3.cpp -o bdr_v38 -lz
+      - name: Run checkpoint validation
+        run: |
+          mkdir -p benchmark-results/v38
+          ./bdr_v38 | tee benchmark-results/v38/checkpoint.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-checkpoint-results
+          path: benchmark-results/v38/checkpoint.csv
