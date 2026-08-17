@@ -16,10 +16,7 @@ jobs:
             f="v33_${d}.wal"
             ./bdr_v33 writer "$f" 2000000 8 128 512 &
             pid=$!
-            python3 - <<PY
-import time
-time.sleep(${d}/1000)
-PY
+            python3 -c "import time; time.sleep(${d}/1000)"
             kill -9 $pid 2>/dev/null || true
             wait $pid 2>/dev/null || true
             r=$(./bdr_v33 recover "$f")
