@@ -1,0 +1,20 @@
+name: v41 delete multicheckpoint
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: g++ -O3 -std=c++20 benchmarks/bdr_v41_delete_multicheckpoint.cpp -o bdr_v41 -lz
+      - name: Validate repeated checkpoints and deletes
+        run: |
+          mkdir -p benchmark-results/v41
+          ./bdr_v41 | tee benchmark-results/v41/results.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v41-delete-multicheckpoint-results
+          path: benchmark-results/v41/results.txt
