@@ -1,0 +1,18 @@
+name: v30 ticketed pipeline
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+  workflow_dispatch:
+jobs:
+  ticketed:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: g++ -O3 -std=c++20 benchmarks/bdr_v30_ticketed_pipeline.cpp -o bdr_v30 -lz -lpthread
+      - run: |
+          mkdir -p benchmark-results/v30
+          ./bdr_v30 100000 128 > benchmark-results/v30/run.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v30-ticketed-results
+          path: benchmark-results/v30/
