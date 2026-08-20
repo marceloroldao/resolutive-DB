@@ -1,0 +1,28 @@
+name: v52 BDW3 KEEP_SIZE market comparison
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'benchmarks/bdr_v52_bdw3_market.cpp'
+      - '.github/workflows/v52-bdw3-market.yml'
+  workflow_dispatch:
+
+jobs:
+  market:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install database libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev liblmdb-dev libleveldb-dev librocksdb-dev libsnappy-dev liblz4-dev libzstd-dev libbz2-dev zlib1g-dev
+      - name: Build
+        run: g++ -O3 -std=c++20 benchmarks/bdr_v52_bdw3_market.cpp -o bdr_v52 -lsqlite3 -llmdb -lleveldb -lrocksdb -lpthread -ldl -lz -lbz2 -llz4 -lzstd -lsnappy
+      - name: Run market comparison
+        run: |
+          mkdir -p benchmark-results/v52
+          ./bdr_v52 100000 128 | tee benchmark-results/v52/run100k.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v52-bdw3-market-results
+          path: benchmark-results/v52/
