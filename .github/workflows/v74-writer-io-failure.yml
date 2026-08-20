@@ -1,0 +1,38 @@
+name: v74 Writer I/O failure propagation
+
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v74/**'
+      - '.github/workflows/v74-writer-io-failure.yml'
+  workflow_dispatch:
+
+jobs:
+  io-failure:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Generate hardened database source
+        run: |
+          mkdir -p build/v74
+          python3 experimental/api_v74/harden_writer.py \
+            experimental/api_v56/src/database.cpp \
+            build/v74/database_hardened.cpp
+      - name: Compile V74
+        run: |
+          g++ -std=c++20 -O2 -pthread \
+            -Iexperimental/api_v56/include \
+            build/v74/database_hardened.cpp \
+            experimental/api_v56/src/resolutive_index.cpp \
+            experimental/api_v74/test_writer_io_failure.cpp \
+            -lz -o build/v74/test_writer_io_failure
+      - name: Run forced I/O failure gate
+        run: timeout 30s build/v74/test_writer_io_failure | tee build/v74/result.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v74-writer-io-failure-result
+          path: build/v74/result.txt
