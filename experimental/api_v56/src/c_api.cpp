@@ -31,6 +31,10 @@ static std::string bytes_to_string(const void* p, size_t n) {
 static bdr::Options convert_options(const bdr_options* in) {
     bdr::Options out;
     if (!in) return out;
+    if (in->abi_version != BDR_C_ABI_VERSION)
+        throw std::invalid_argument("unsupported BDR C ABI version");
+    if (in->struct_size != sizeof(bdr_options))
+        throw std::invalid_argument("bdr_options struct_size mismatch");
     out.reserve_bytes = in->reserve_bytes;
     out.wal_batch = in->wal_batch;
     out.partition_count = in->partition_count;
@@ -60,9 +64,19 @@ static bdr_status guard(F&& fn) {
 
 extern "C" {
 
+uint32_t bdr_abi_version(void) {
+    return BDR_C_ABI_VERSION;
+}
+
+size_t bdr_options_size(void) {
+    return sizeof(bdr_options);
+}
+
 bdr_options bdr_default_options(void) {
     bdr::Options o;
     bdr_options c{};
+    c.abi_version = BDR_C_ABI_VERSION;
+    c.struct_size = sizeof(bdr_options);
     c.reserve_bytes = o.reserve_bytes;
     c.wal_batch = o.wal_batch;
     c.partition_count = o.partition_count;
