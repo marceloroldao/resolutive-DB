@@ -1,0 +1,67 @@
+name: v76 Self-contained Python wheel
+
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v76/**'
+      - '.github/workflows/v76-self-contained-wheel.yml'
+  workflow_dispatch:
+
+jobs:
+  wheel-smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system build dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev python3-venv unzip
+      - name: Build wheel
+        run: |
+          mkdir -p build/v76/wheels
+          python3 -m pip wheel ./experimental/api_v76 --no-deps -w build/v76/wheels
+          ls -lh build/v76/wheels
+      - name: Verify native library is packaged
+        run: |
+          WHEEL=$(ls build/v76/wheels/*.whl | head -n1)
+          unzip -l "$WHEEL" | tee build/v76/wheel-contents.txt
+          grep -E 'bdr_native/(libbdr_c\.so|libbdr_c\.dylib|bdr_c\.dll)' build/v76/wheel-contents.txt
+      - name: Install into clean virtualenv
+        run: |
+          python3 -m venv build/v76/venv
+          build/v76/venv/bin/python -m pip install --upgrade pip
+          build/v76/venv/bin/pip install build/v76/wheels/*.whl
+      - name: Smoke test without BDR_C_LIBRARY
+        run: |
+          unset BDR_C_LIBRARY
+          build/v76/venv/bin/python - <<'PY' | tee build/v76/smoke.txt
+          import shutil, tempfile
+          from bdr_native import Database, BDR_C_ABI_VERSION
+
+          root=tempfile.mkdtemp(prefix='bdr-v76-')
+          try:
+              with Database(root,reserve_bytes=4*1024*1024,wal_batch=64,partition_count=64) as db:
+                  t=db.put(b'binary\x00key',b'value\x00payload')
+                  db.wait(t)
+                  assert db.get(b'binary\x00key')==b'value\x00payload'
+                  db.put_sync('utf8-key','valor')
+                  db.delete_sync(b'binary\x00key')
+                  db.checkpoint()
+                  seq=db.last_sequence
+                  assert db.durable_sequence==seq
+              with Database(root,reserve_bytes=4*1024*1024,wal_batch=64,partition_count=64) as db:
+                  assert db.get(b'binary\x00key') is None
+                  assert db.get('utf8-key')==b'valor'
+                  assert db.last_sequence==seq==db.durable_sequence
+                  assert db.size==1
+              print(f'abi={BDR_C_ABI_VERSION},self_contained=1,reopen=1,pass=1')
+          finally:
+              shutil.rmtree(root,ignore_errors=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v76-wheel-smoke-results
+          path: |
+            build/v76/wheel-contents.txt
+            build/v76/smoke.txt
+            build/v76/wheels/*.whl
