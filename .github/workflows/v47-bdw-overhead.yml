@@ -1,0 +1,21 @@
+name: v47 BDW2 vs BDW3 overhead
+on:
+  push:
+    branches:
+      - experiment/hierarchical-resolutive-addressing
+  workflow_dispatch:
+jobs:
+  bench:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: g++ -O3 -std=c++20 benchmarks/bdr_v47_bdw2_vs_bdw3_overhead.cpp -o bdr_v47 -lz
+      - name: Run benchmark
+        run: |
+          mkdir -p benchmark-results/v47
+          ./bdr_v47 | tee benchmark-results/v47/results.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v47-bdw-overhead-results
+          path: benchmark-results/v47/results.csv
