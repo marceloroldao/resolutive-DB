@@ -1,0 +1,45 @@
+name: v77 Installed wheel vs SQLite
+
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v63/**'
+      - 'experimental/api_v76/**'
+      - '.github/workflows/v77-installed-wheel-vs-sqlite.yml'
+  workflow_dispatch:
+
+jobs:
+  benchmark-installed-wheel:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev python3-venv
+      - name: Build V76 wheel
+        run: |
+          mkdir -p build/v77/wheels
+          python3 -m pip wheel ./experimental/api_v76 --no-deps -w build/v77/wheels
+      - name: Install wheel in clean virtualenv
+        run: |
+          python3 -m venv build/v77/venv
+          build/v77/venv/bin/pip install build/v77/wheels/*.whl
+      - name: Benchmark installed API against sqlite3
+        run: |
+          unset BDR_C_LIBRARY
+          mkdir -p build/v77/results
+          build/v77/venv/bin/python experimental/api_v63/benchmark_python_vs_sqlite.py \
+            --sizes 10000,50000 \
+            --batches 1,128 \
+            --queries 10000 \
+            --output build/v77/results/results.csv | tee build/v77/results/stdout.txt
+      - name: Record installed package metadata
+        run: |
+          build/v77/venv/bin/pip show bdr-native-experimental | tee build/v77/results/package.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v77-installed-wheel-vs-sqlite-results
+          path: |
+            build/v77/results/
+            build/v77/wheels/*.whl
