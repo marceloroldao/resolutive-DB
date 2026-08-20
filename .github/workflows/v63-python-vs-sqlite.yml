@@ -1,0 +1,36 @@
+name: v63 Python binding vs SQLite
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v62/**'
+      - 'experimental/api_v63/**'
+      - '.github/workflows/v63-python-vs-sqlite.yml'
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure shared C ABI
+        run: cmake -S experimental/api_v62 -B experimental/api_v62/build -DCMAKE_BUILD_TYPE=Release
+      - name: Build native library
+        run: cmake --build experimental/api_v62/build -j2
+      - name: Install Python binding
+        run: python3 -m pip install ./experimental/api_v62/python
+      - name: Run V63 benchmark
+        env:
+          BDR_C_LIBRARY: ${{ github.workspace }}/experimental/api_v62/build/libbdr_c.so
+        run: |
+          mkdir -p benchmark-results/v63
+          python3 experimental/api_v63/benchmark_python_vs_sqlite.py \
+            --sizes 10000,50000 \
+            --batches 1,128 \
+            --queries 10000 \
+            --output benchmark-results/v63/results.csv | tee benchmark-results/v63/stdout.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v63-python-vs-sqlite-results
+          path: benchmark-results/v63/
