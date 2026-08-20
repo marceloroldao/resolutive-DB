@@ -18,7 +18,8 @@ int main(void) {
     bdr_options opt = bdr_default_options();
     opt.reserve_bytes = 8u * 1024u * 1024u;
     opt.wal_batch = 64;
-    opt.rho_partitions = 64;
+    opt.partition_count = 64;
+    opt.partition_max_load = 0.78;
 
     bdr_db* db = NULL;
     require_status(bdr_open(path, &opt, &db), BDR_OK, "open");
