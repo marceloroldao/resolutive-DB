@@ -1,0 +1,24 @@
+name: v53 BDW3 KEEP_SIZE multiwriter SIGKILL
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'benchmarks/bdr_v53_bdw3_sigkill_multiwriter.cpp'
+      - '.github/workflows/v53-bdw3-sigkill-multiwriter.yml'
+  workflow_dispatch:
+
+jobs:
+  crash:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: g++ -O3 -std=c++20 benchmarks/bdr_v53_bdw3_sigkill_multiwriter.cpp -o bdr_v53 -lz -lpthread
+      - name: Run SIGKILL recovery matrix
+        run: |
+          mkdir -p benchmark-results/v53
+          ./bdr_v53 | tee benchmark-results/v53/results.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v53-bdw3-sigkill-multiwriter-results
+          path: benchmark-results/v53/results.csv
