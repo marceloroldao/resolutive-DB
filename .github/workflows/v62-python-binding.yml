@@ -15,10 +15,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Configure shared C ABI
         run: cmake -S experimental/api_v62 -B experimental/api_v62/build -DCMAKE_BUILD_TYPE=Release
-      - name: Build
+      - name: Build native library
         run: cmake --build experimental/api_v62/build -j2
-      - name: Run Python contract test
+      - name: Install Python binding
+        run: python3 -m pip install experimental/api_v62/python
+      - name: Run installed binding contract test
         env:
           BDR_C_LIBRARY: ${{ github.workspace }}/experimental/api_v62/build/libbdr_c.so
-          PYTHONPATH: ${{ github.workspace }}/experimental/api_v62/python
-        run: python3 -m unittest -v experimental/api_v62/python/test_bdr_native.py
+        run: python3 experimental/api_v62/python/test_bdr_native.py
