@@ -1,0 +1,25 @@
+name: v50 BDW3 KEEP_SIZE preallocation
+on:
+  push:
+    branches:
+      - experiment/hierarchical-resolutive-addressing
+    paths:
+      - 'benchmarks/bdr_v50_keep_size_prealloc.cpp'
+      - '.github/workflows/v50-keep-size-prealloc.yml'
+  workflow_dispatch:
+
+jobs:
+  bench:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: g++ -O3 -std=c++20 benchmarks/bdr_v50_keep_size_prealloc.cpp -o bdr_v50 -lz
+      - name: Run benchmark
+        run: |
+          mkdir -p benchmark-results/v50
+          ./bdr_v50 100000 | tee benchmark-results/v50/results.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v50-keep-size-prealloc-results
+          path: benchmark-results/v50/results.csv
