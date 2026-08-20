@@ -1,0 +1,77 @@
+name: V85 Materialized API Candidate
+
+on:
+  push:
+    branches: [ experiment/hierarchical-resolutive-addressing ]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v69/**'
+      - 'experimental/api_v70/**'
+      - 'experimental/api_v71/**'
+      - 'experimental/api_v74/**'
+      - 'experimental/api_v75/**'
+      - 'experimental/api_v79/**'
+      - 'experimental/api_v83/**'
+      - 'experimental/api_v84/**'
+      - 'experimental/api_v85/**'
+      - '.github/workflows/v85-materialized-candidate.yml'
+  workflow_dispatch:
+
+jobs:
+  integrated-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Materialize deterministic candidate
+        run: python3 experimental/api_v85/materialize_candidate.py
+      - name: Verify source invariants
+        run: |
+          grep -q 'writer_error' experimental/api_v85/generated/src/database.cpp
+          grep -q 'replay_snapshot' experimental/api_v85/generated/src/database.cpp
+          grep -q 'LOCK_EX|LOCK_NB' experimental/api_v85/generated/src/database.cpp
+          ! grep -q 'std::abort()' experimental/api_v85/generated/src/database.cpp
+          ! grep -q 'decode_snapshot(' experimental/api_v85/generated/src/database.cpp
+      - name: Build V56 contract against candidate
+        run: |
+          g++ -std=c++20 -O2 -pthread \
+            -Iexperimental/api_v85/generated/include \
+            experimental/api_v85/generated/src/database.cpp \
+            experimental/api_v85/generated/src/resolutive_index.cpp \
+            experimental/api_v56/test_api.cpp \
+            -lz -o /tmp/v85_contract
+          /tmp/v85_contract
+      - name: Build close/submit race against candidate
+        run: |
+          g++ -std=c++20 -O2 -pthread \
+            -Iexperimental/api_v85/generated/include \
+            experimental/api_v85/generated/src/database.cpp \
+            experimental/api_v85/generated/src/resolutive_index.cpp \
+            experimental/api_v69/test_close_submit_race.cpp \
+            -lz -o /tmp/v85_v69
+          /tmp/v85_v69
+      - name: Build checkpoint/writer race against candidate
+        run: |
+          g++ -std=c++20 -O2 -pthread \
+            -Iexperimental/api_v85/generated/include \
+            experimental/api_v85/generated/src/database.cpp \
+            experimental/api_v85/generated/src/resolutive_index.cpp \
+            experimental/api_v70/test_checkpoint_writer_race.cpp \
+            -lz -o /tmp/v85_v70
+          /tmp/v85_v70
+      - name: Build same-key PUT/DELETE race against candidate
+        run: |
+          g++ -std=c++20 -O2 -pthread \
+            -Iexperimental/api_v85/generated/include \
+            experimental/api_v85/generated/src/database.cpp \
+            experimental/api_v85/generated/src/resolutive_index.cpp \
+            experimental/api_v71/test_same_key_race.cpp \
+            -lz -o /tmp/v85_v71
+          /tmp/v85_v71
+      - name: Upload deterministic manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: v85-candidate-manifest
+          path: experimental/api_v85/generated/MANIFEST.txt
