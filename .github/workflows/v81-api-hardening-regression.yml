@@ -1,0 +1,95 @@
+name: v81 API hardening performance regression
+
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v74/**'
+      - 'experimental/api_v75/**'
+      - 'experimental/api_v79/**'
+      - 'experimental/api_v81/**'
+      - '.github/workflows/v81-api-hardening-regression.yml'
+  workflow_dispatch:
+
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Compose integrated candidate
+        run: |
+          mkdir -p build/v81
+          python3 experimental/api_v74/harden_writer.py \
+            experimental/api_v56/src/database.cpp build/v81/database_v74.cpp
+          python3 experimental/api_v75/stream_snapshot.py \
+            build/v81/database_v74.cpp build/v81/database_v75.cpp
+          python3 experimental/api_v79/process_lock.py \
+            build/v81/database_v75.cpp build/v81/database_candidate.cpp
+      - name: Compile baseline and candidate benchmarks
+        run: |
+          COMMON='-std=c++20 -O2 -pthread -Iexperimental/api_v56/include'
+          g++ $COMMON \
+            experimental/api_v56/src/database.cpp \
+            experimental/api_v56/src/resolutive_index.cpp \
+            experimental/api_v81/benchmark_api_regression.cpp \
+            -lz -o build/v81/bench_baseline
+          g++ $COMMON \
+            build/v81/database_candidate.cpp \
+            experimental/api_v56/src/resolutive_index.cpp \
+            experimental/api_v81/benchmark_api_regression.cpp \
+            -lz -o build/v81/bench_candidate
+      - name: Run strict durability workload
+        run: |
+          build/v81/bench_baseline baseline build/v81/db-base-strict 1 1 20000 10000 > build/v81/base-strict.csv
+          build/v81/bench_candidate candidate build/v81/db-cand-strict 1 1 20000 10000 > build/v81/cand-strict.csv
+      - name: Run concurrent group durability workload
+        run: |
+          build/v81/bench_baseline baseline build/v81/db-base-group 8 128 200000 50000 > build/v81/base-group.csv
+          build/v81/bench_candidate candidate build/v81/db-cand-group 8 128 200000 50000 > build/v81/cand-group.csv
+      - name: Compare medians
+        run: |
+          python3 - <<'PY'
+          import csv, statistics
+          from pathlib import Path
+
+          def read(path):
+              rows=list(csv.DictReader(Path(path).open()))
+              if len(rows)!=3: raise SystemExit(f'{path}: expected 3 runs')
+              if any(int(r['errors']) for r in rows): raise SystemExit(f'{path}: correctness errors')
+              return rows
+
+          out=[]
+          for name in ('strict','group'):
+              b=read(f'build/v81/base-{name}.csv')
+              c=read(f'build/v81/cand-{name}.csv')
+              for metric in ('put_ops_s','get_ops_s','wait_p99_us'):
+                  bm=statistics.median(float(r[metric]) for r in b)
+                  cm=statistics.median(float(r[metric]) for r in c)
+                  ratio=cm/bm if bm else 0.0
+                  out.append((name,metric,bm,cm,ratio))
+                  print(f'{name},{metric},baseline={bm:.3f},candidate={cm:.3f},ratio={ratio:.4f}')
+          Path('build/v81/comparison.csv').write_text(
+              'workload,metric,baseline,candidate,ratio\n' +
+              ''.join(f'{w},{m},{b},{c},{r}\n' for w,m,b,c,r in out)
+          )
+
+          # Hardening should have near-zero hot-path cost. Fail only on a large
+          # reproducible regression, not on normal shared-runner noise.
+          for w,m,b,c,r in out:
+              if m in ('put_ops_s','get_ops_s') and r < 0.80:
+                  raise SystemExit(f'large throughput regression: {w} {m} ratio={r:.3f}')
+              if m == 'wait_p99_us' and c > max(b*2.0, b+5000.0):
+                  raise SystemExit(f'large p99 regression: {w} baseline={b:.1f} candidate={c:.1f}')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v81-api-hardening-regression-results
+          path: |
+            build/v81/base-strict.csv
+            build/v81/cand-strict.csv
+            build/v81/base-group.csv
+            build/v81/cand-group.csv
+            build/v81/comparison.csv
