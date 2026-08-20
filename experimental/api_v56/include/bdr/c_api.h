@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+#define BDR_C_ABI_VERSION 1u
+
 typedef struct bdr_db bdr_db;
 
 typedef enum bdr_status {
@@ -18,6 +20,8 @@ typedef enum bdr_status {
 } bdr_status;
 
 typedef struct bdr_options {
+    uint32_t abi_version;
+    size_t struct_size;
     size_t reserve_bytes;
     size_t wal_batch;
     size_t partition_count;
@@ -25,6 +29,11 @@ typedef struct bdr_options {
     int keep_size_preallocation;
 } bdr_options;
 
+/* Runtime ABI introspection. */
+uint32_t bdr_abi_version(void);
+size_t bdr_options_size(void);
+
+/* Returns a fully initialized options struct for the current ABI. */
 bdr_options bdr_default_options(void);
 
 bdr_status bdr_open(const char* directory, const bdr_options* options, bdr_db** out_db);
