@@ -1,0 +1,32 @@
+name: v64 Python binding crash recovery
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v62/**'
+      - 'experimental/api_v64/**'
+      - '.github/workflows/v64-python-crash-recovery.yml'
+  workflow_dispatch:
+
+jobs:
+  crash-recovery:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure shared C ABI
+        run: cmake -S experimental/api_v62 -B experimental/api_v62/build -DCMAKE_BUILD_TYPE=Release
+      - name: Build native library
+        run: cmake --build experimental/api_v62/build -j2
+      - name: Install Python binding
+        run: python3 -m pip install ./experimental/api_v62/python
+      - name: Run SIGKILL recovery gate
+        env:
+          BDR_C_LIBRARY: ${{ github.workspace }}/experimental/api_v62/build/libbdr_c.so
+        run: |
+          mkdir -p benchmark-results/v64
+          python3 experimental/api_v64/python_crash_recovery.py --kill-ms 5,10,25,50 | tee benchmark-results/v64/results.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v64-python-crash-recovery-results
+          path: benchmark-results/v64/results.csv
