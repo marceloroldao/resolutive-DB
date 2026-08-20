@@ -2,10 +2,13 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <filesystem>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
+#include <sys/stat.h>
 
 namespace bdr {
 
