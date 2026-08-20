@@ -1,0 +1,28 @@
+name: v73 Cross-language soak
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v62/**'
+      - 'experimental/api_v73/**'
+      - '.github/workflows/v73-cross-language-soak.yml'
+  workflow_dispatch:
+
+jobs:
+  cross-language:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure native bridge
+        run: cmake -S experimental/api_v62 -B experimental/api_v62/build -DCMAKE_BUILD_TYPE=Release
+      - name: Build native bridge
+        run: cmake --build experimental/api_v62/build -j2
+      - name: Install Python binding
+        run: python3 -m pip install ./experimental/api_v62/python
+      - name: Run cross-language soak
+        env:
+          BDR_C_LIBRARY: ${{ github.workspace }}/experimental/api_v62/build/libbdr_c.so
+          BDR_INCLUDE_DIR: ${{ github.workspace }}/experimental/api_v56/include
+          BDR_LIB_DIR: ${{ github.workspace }}/experimental/api_v62/build
+        run: python3 experimental/api_v73/test_cross_language_soak.py
