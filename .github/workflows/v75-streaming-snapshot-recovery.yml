@@ -1,0 +1,70 @@
+name: v75 Streaming snapshot recovery
+
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v75/**'
+      - '.github/workflows/v75-streaming-snapshot-recovery.yml'
+  workflow_dispatch:
+
+jobs:
+  recovery-rss:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Generate streaming source
+        run: |
+          mkdir -p build/v75
+          python3 experimental/api_v75/stream_snapshot.py \
+            experimental/api_v56/src/database.cpp \
+            build/v75/database_streaming.cpp
+      - name: Compile baseline and streaming probes
+        run: |
+          COMMON='-std=c++20 -O2 -pthread -Iexperimental/api_v56/include'
+          g++ $COMMON \
+            experimental/api_v56/src/database.cpp \
+            experimental/api_v56/src/resolutive_index.cpp \
+            experimental/api_v75/snapshot_recovery_probe.cpp \
+            -lz -o build/v75/probe_baseline
+          g++ $COMMON \
+            build/v75/database_streaming.cpp \
+            experimental/api_v56/src/resolutive_index.cpp \
+            experimental/api_v75/snapshot_recovery_probe.cpp \
+            -lz -o build/v75/probe_streaming
+      - name: Prepare shared 300k snapshot
+        run: build/v75/probe_baseline prepare build/v75/db 300000 | tee build/v75/prepare.txt
+      - name: Recover with baseline
+        run: build/v75/probe_baseline recover build/v75/db 300000 | tee build/v75/baseline.txt
+      - name: Recover with streaming implementation
+        run: build/v75/probe_streaming recover build/v75/db 300000 | tee build/v75/streaming.txt
+      - name: Compare RSS and correctness
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          def peak(path):
+              text=Path(path).read_text()
+              m=re.search(r'rss_peak_kb=(\d+)',text)
+              if not m: raise SystemExit(f'missing RSS in {path}: {text}')
+              return int(m.group(1))
+          b=peak('build/v75/baseline.txt')
+          s=peak('build/v75/streaming.txt')
+          ratio=s/b if b else 1.0
+          print(f'baseline_peak_kb={b},streaming_peak_kb={s},ratio={ratio:.4f}')
+          Path('build/v75/comparison.txt').write_text(
+              f'baseline_peak_kb={b}\nstreaming_peak_kb={s}\nratio={ratio:.6f}\n')
+          if s > b:
+              raise SystemExit('streaming recovery used more peak RSS than baseline')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v75-streaming-snapshot-results
+          path: |
+            build/v75/prepare.txt
+            build/v75/baseline.txt
+            build/v75/streaming.txt
+            build/v75/comparison.txt
