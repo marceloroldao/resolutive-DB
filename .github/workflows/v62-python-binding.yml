@@ -1,0 +1,24 @@
+name: v62 Python binding
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v62/**'
+      - '.github/workflows/v62-python-binding.yml'
+  workflow_dispatch:
+
+jobs:
+  python-binding:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure shared C ABI
+        run: cmake -S experimental/api_v62 -B experimental/api_v62/build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build experimental/api_v62/build -j2
+      - name: Run Python contract test
+        env:
+          BDR_C_LIBRARY: ${{ github.workspace }}/experimental/api_v62/build/libbdr_c.so
+          PYTHONPATH: ${{ github.workspace }}/experimental/api_v62/python
+        run: python3 -m unittest -v experimental/api_v62/python/test_bdr_native.py
