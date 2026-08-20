@@ -1,0 +1,25 @@
+name: v71 Same-key PUT DELETE race
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v71/**'
+      - '.github/workflows/v71-same-key-race.yml'
+  workflow_dispatch:
+
+jobs:
+  race:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build V71
+        run: |
+          g++ -std=c++20 -O2 -pthread \
+            -Iexperimental/api_v56/include \
+            experimental/api_v56/src/database.cpp \
+            experimental/api_v56/src/resolutive_index.cpp \
+            experimental/api_v71/test_same_key_put_delete_race.cpp \
+            -lz -o /tmp/bdr_v71
+      - name: Run V71
+        run: /tmp/bdr_v71
