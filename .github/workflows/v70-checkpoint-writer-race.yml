@@ -1,0 +1,31 @@
+name: v70 checkpoint-writer race
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v70/**'
+      - '.github/workflows/v70-checkpoint-writer-race.yml'
+  workflow_dispatch:
+
+jobs:
+  race:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build V70
+        run: |
+          g++ -O2 -std=c++20 -pthread \
+            -Iexperimental/api_v56/include \
+            experimental/api_v56/src/database.cpp \
+            experimental/api_v56/src/resolutive_index.cpp \
+            experimental/api_v70/test_checkpoint_writer_race.cpp \
+            -lz -o /tmp/v70
+      - name: Run checkpoint-writer stress
+        run: |
+          mkdir -p benchmark-results/v70
+          /tmp/v70 | tee benchmark-results/v70/results.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v70-checkpoint-writer-race-results
+          path: benchmark-results/v70/results.csv
