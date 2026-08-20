@@ -1,0 +1,36 @@
+name: v87-c-abi-v1
+
+on:
+  push:
+    branches:
+      - experiment/hierarchical-resolutive-addressing
+    paths:
+      - 'experimental/api_v86/**'
+      - 'experimental/api_v87/**'
+      - '.github/workflows/v87-c-abi-v1.yml'
+  workflow_dispatch:
+
+jobs:
+  c-abi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S experimental/api_v87 -B build-v87 -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build-v87 -j2
+      - name: Test
+        run: ctest --test-dir build-v87 --output-on-failure
+      - name: ABI symbols
+        run: |
+          nm -D --defined-only build-v87/libbdr_c.so.1.0.0 | awk '{print $3}' | grep '^bdr_' | sort | tee v87-symbols.txt
+          grep -q '^bdr_open$' v87-symbols.txt
+          grep -q '^bdr_get$' v87-symbols.txt
+          grep -q '^bdr_put$' v87-symbols.txt
+          grep -q '^bdr_delete$' v87-symbols.txt
+          grep -q '^bdr_checkpoint$' v87-symbols.txt
+      - name: Upload ABI identity
+        uses: actions/upload-artifact@v4
+        with:
+          name: v87-c-abi-symbols
+          path: v87-symbols.txt
