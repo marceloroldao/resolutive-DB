@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bdr-native-experimental"
-version = "0.62.0"
-description = "Experimental Python binding for the BDR native C ABI"
+version = "0.67.0"
+description = "Experimental Python binding for the versioned BDR native C ABI"
 requires-python = ">=3.10"
 
 [tool.setuptools]
