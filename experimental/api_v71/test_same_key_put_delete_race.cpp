@@ -1,5 +1,6 @@
 #include "bdr/database.hpp"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <filesystem>
