@@ -1,0 +1,24 @@
+name: v54 BDR3 BDW3 repeated soak
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'benchmarks/bdr_v54_bdr3_bdw3_soak.cpp'
+      - '.github/workflows/v54-bdr3-bdw3-soak.yml'
+  workflow_dispatch:
+
+jobs:
+  soak:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: g++ -O2 -std=c++20 benchmarks/bdr_v54_bdr3_bdw3_soak.cpp -o bdr_v54 -lz
+      - name: Run soak
+        run: |
+          mkdir -p benchmark-results/v54
+          ./bdr_v54 20 500 100 | tee benchmark-results/v54/results.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v54-bdr3-bdw3-soak-results
+          path: benchmark-results/v54/results.csv
