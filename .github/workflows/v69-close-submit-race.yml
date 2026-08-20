@@ -1,0 +1,31 @@
+name: v69 close-submit race
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v69/**'
+      - '.github/workflows/v69-close-submit-race.yml'
+  workflow_dispatch:
+
+jobs:
+  race:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build V69
+        run: |
+          g++ -O2 -std=c++20 -pthread \
+            -Iexperimental/api_v56/include \
+            experimental/api_v56/src/database.cpp \
+            experimental/api_v56/src/resolutive_index.cpp \
+            experimental/api_v69/test_close_submit_race.cpp \
+            -lz -o /tmp/v69
+      - name: Run race stress
+        run: |
+          mkdir -p benchmark-results/v69
+          /tmp/v69 | tee benchmark-results/v69/results.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v69-close-submit-race-results
+          path: benchmark-results/v69/results.csv
