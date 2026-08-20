@@ -1,0 +1,38 @@
+name: v66 Python API soak
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v62/**'
+      - 'experimental/api_v66/**'
+      - '.github/workflows/v66-python-soak.yml'
+  workflow_dispatch:
+
+jobs:
+  soak:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure shared C ABI
+        run: cmake -S experimental/api_v62 -B experimental/api_v62/build -DCMAKE_BUILD_TYPE=Release
+      - name: Build native library
+        run: cmake --build experimental/api_v62/build -j2
+      - name: Install Python binding
+        run: python3 -m pip install ./experimental/api_v62/python
+      - name: Run V66 soak
+        env:
+          BDR_C_LIBRARY: ${{ github.workspace }}/experimental/api_v62/build/libbdr_c.so
+        run: |
+          mkdir -p benchmark-results/v66
+          python3 experimental/api_v66/python_soak.py \
+            --cycles 20 \
+            --puts-per-cycle 500 \
+            --seed 660042 \
+            --output benchmark-results/v66/results.csv \
+            | tee benchmark-results/v66/stdout.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v66-python-api-soak-results
+          path: benchmark-results/v66/
