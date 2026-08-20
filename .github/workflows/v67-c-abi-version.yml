@@ -1,0 +1,30 @@
+name: v67 C ABI version contract
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v62/**'
+      - 'experimental/api_v67/**'
+      - '.github/workflows/v67-c-abi-version.yml'
+  workflow_dispatch:
+
+jobs:
+  abi-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure shared C ABI
+        run: cmake -S experimental/api_v62 -B experimental/api_v62/build -DCMAKE_BUILD_TYPE=Release
+      - name: Build native library
+        run: cmake --build experimental/api_v62/build -j2
+      - name: Build ABI contract test
+        run: |
+          gcc -std=c11 -O2 \
+            -Iexperimental/api_v56/include \
+            experimental/api_v67/test_c_abi_version.c \
+            -Lexperimental/api_v62/build -lbdr_c \
+            -Wl,-rpath,${{ github.workspace }}/experimental/api_v62/build \
+            -o experimental/api_v67/test_c_abi_version
+      - name: Run ABI contract test
+        run: experimental/api_v67/test_c_abi_version
