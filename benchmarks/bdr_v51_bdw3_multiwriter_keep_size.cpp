@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <cstdio>
 #include <deque>
 #include <mutex>
 #include <thread>
