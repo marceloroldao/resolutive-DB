@@ -1,0 +1,29 @@
+name: v55 experimental C++ API prototype
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v55/**'
+      - '.github/workflows/v55-api-prototype.yml'
+  workflow_dispatch:
+
+jobs:
+  api:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API contract test
+        run: |
+          g++ -O2 -std=c++20 \
+            -Iexperimental/api_v55/include \
+            experimental/api_v55/src/database.cpp \
+            experimental/api_v55/tests/test_api.cpp \
+            -o v55_api_test -lz -lpthread
+      - name: Run API contract test
+        run: |
+          mkdir -p benchmark-results/v55
+          ./v55_api_test | tee benchmark-results/v55/api_contract.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v55-api-contract-results
+          path: benchmark-results/v55/api_contract.csv
