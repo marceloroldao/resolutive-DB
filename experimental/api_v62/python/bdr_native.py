@@ -11,10 +11,13 @@ BDR_INVALID_ARGUMENT = 1
 BDR_NOT_FOUND = 2
 BDR_BUFFER_TOO_SMALL = 3
 BDR_ERROR = 4
+BDR_C_ABI_VERSION = 1
 
 
 class _Options(C.Structure):
     _fields_ = [
+        ("abi_version", C.c_uint32),
+        ("struct_size", C.c_size_t),
         ("reserve_bytes", C.c_size_t),
         ("wal_batch", C.c_size_t),
         ("partition_count", C.c_size_t),
@@ -46,6 +49,8 @@ def _load_library() -> C.CDLL:
 
 
 _lib = _load_library()
+_lib.bdr_abi_version.restype = C.c_uint32
+_lib.bdr_options_size.restype = C.c_size_t
 _lib.bdr_default_options.restype = _Options
 _lib.bdr_open.argtypes = [C.c_char_p, C.POINTER(_Options), C.POINTER(C.c_void_p)]
 _lib.bdr_open.restype = C.c_int
@@ -74,6 +79,15 @@ _lib.bdr_last_sequence.restype = C.c_int
 _lib.bdr_durable_sequence.argtypes = [C.c_void_p, C.POINTER(C.c_uint64)]
 _lib.bdr_durable_sequence.restype = C.c_int
 _lib.bdr_last_error.restype = C.c_char_p
+
+if int(_lib.bdr_abi_version()) != BDR_C_ABI_VERSION:
+    raise RuntimeError(
+        f"BDR C ABI mismatch: binding={BDR_C_ABI_VERSION} library={int(_lib.bdr_abi_version())}"
+    )
+if int(_lib.bdr_options_size()) != C.sizeof(_Options):
+    raise RuntimeError(
+        f"BDR options size mismatch: binding={C.sizeof(_Options)} library={int(_lib.bdr_options_size())}"
+    )
 
 
 class BDRException(RuntimeError):
@@ -110,6 +124,8 @@ class Database:
                  partition_max_load: Optional[float] = None,
                  keep_size_preallocation: Optional[bool] = None):
         opt = _lib.bdr_default_options()
+        if opt.abi_version != BDR_C_ABI_VERSION or opt.struct_size != C.sizeof(_Options):
+            raise RuntimeError("BDR library returned incompatible default options")
         if reserve_bytes is not None:
             opt.reserve_bytes = reserve_bytes
         if wal_batch is not None:
