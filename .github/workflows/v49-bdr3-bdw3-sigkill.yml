@@ -1,0 +1,21 @@
+name: v49 BDR3 plus BDW3 SIGKILL
+on:
+  push:
+    branches:
+      - experiment/hierarchical-resolutive-addressing
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: g++ -O3 -std=c++20 benchmarks/bdr_v49_bdr3_bdw3_sigkill.cpp -o bdr_v49 -lz
+      - name: Run SIGKILL checkpoint validation
+        run: |
+          mkdir -p benchmark-results/v49
+          ./bdr_v49 | tee benchmark-results/v49/results.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v49-bdr3-bdw3-sigkill-results
+          path: benchmark-results/v49/results.csv
