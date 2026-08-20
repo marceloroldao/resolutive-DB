@@ -1,6 +1,7 @@
 #include "bdr/database.hpp"
 
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -62,22 +63,22 @@ int main() {
         require(db->get("delta").value_or("") == "D", "delta missing after reopen");
         require(db->get("epsilon").value_or("") == "E", "epsilon missing after reopen");
         require(db->last_sequence() == seq_before_tail, "sequence changed after clean reopen");
-        db->put_sync("torn", "this-record-will-be-truncated");
         db->close();
     }
 
-    // Simulate a torn final frame. The next open must trim back to the last
-    // fully validated BDW3 frame rather than appending behind damaged bytes.
+    // Simulate a physically written but unconfirmed torn tail. No durable ticket
+    // covers these bytes. Recovery must trim them and preserve every confirmed op.
     fs::path wal = active_wal(dir);
-    auto sz = fs::file_size(wal);
-    require(sz > 3, "WAL unexpectedly short");
-    fs::resize_file(wal, sz - 3);
+    {
+        std::ofstream f(wal, std::ios::binary | std::ios::app);
+        const char partial_len[3] = {0, 0, 64};
+        f.write(partial_len, sizeof(partial_len));
+    }
 
     {
         auto db = bdr::Database::open(dir, opt);
-        require(!db->get("torn").has_value(), "torn record was accepted");
         require(db->get("epsilon").value_or("") == "E", "valid prefix lost after tail repair");
-        require(db->last_sequence() == seq_before_tail, "tail repair recovered wrong sequence");
+        require(db->last_sequence() == seq_before_tail, "tail repair changed durable sequence");
         db->put_sync("after-repair", "OK");
         db->checkpoint();
         db->close();
