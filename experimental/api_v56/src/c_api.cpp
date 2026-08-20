@@ -4,6 +4,7 @@
 #include <cstring>
 #include <exception>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 struct bdr_db {
@@ -32,7 +33,8 @@ static bdr::Options convert_options(const bdr_options* in) {
     if (!in) return out;
     out.reserve_bytes = in->reserve_bytes;
     out.wal_batch = in->wal_batch;
-    out.rho_partitions = in->rho_partitions;
+    out.partition_count = in->partition_count;
+    out.partition_max_load = in->partition_max_load;
     out.keep_size_preallocation = in->keep_size_preallocation != 0;
     return out;
 }
@@ -63,7 +65,8 @@ bdr_options bdr_default_options(void) {
     bdr_options c{};
     c.reserve_bytes = o.reserve_bytes;
     c.wal_batch = o.wal_batch;
-    c.rho_partitions = o.rho_partitions;
+    c.partition_count = o.partition_count;
+    c.partition_max_load = o.partition_max_load;
     c.keep_size_preallocation = o.keep_size_preallocation ? 1 : 0;
     return c;
 }
