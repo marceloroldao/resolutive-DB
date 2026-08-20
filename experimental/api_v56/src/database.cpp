@@ -79,7 +79,27 @@ public:
 
     void recover(){uint64_t seq=0;fs::path snap=dir/"snapshot.bdr3";if(fs::exists(snap)){auto s=decode_snapshot(snap);seq=s.seq;for(auto&[k,v]:s.items)index.put(k,v);}std::vector<fs::path>wals;for(const auto&e:fs::directory_iterator(dir))if(e.is_regular_file()&&e.path().extension()==".bdw3")wals.push_back(e.path());std::sort(wals.begin(),wals.end());uint64_t high=0;ReplayResult last{};for(std::size_t i=0;i<wals.size();++i){auto rr=replay_wal(wals[i],index,seq);high=std::max(high,rr.segment);if(rr.torn&&i+1!=wals.size())throw std::runtime_error("torn non-final WAL");if(i+1==wals.size())last=rr;}next_seq.store(seq);durable_seq.store(seq);if(wals.empty()){create_wal(1,seq+1);fsync_dir(dir);}else{active_wal=wals.back();if(last.torn){int fd=::open(active_wal.c_str(),O_RDWR);if(fd<0||::ftruncate(fd,last.last_good)||::fdatasync(fd)){if(fd>=0)::close(fd);throw std::runtime_error("tail repair failed");}::close(fd);}wal_fd=::open(active_wal.c_str(),O_RDWR);if(wal_fd<0)throw std::runtime_error("active WAL open failed");wal_off=::lseek(wal_fd,0,SEEK_END);segment_id=high;if(options.keep_size_preallocation&&options.reserve_bytes>std::size_t(wal_off))if(::fallocate(wal_fd,FALLOC_FL_KEEP_SIZE,0,off_t(options.reserve_bytes)))throw std::runtime_error("re-preallocation failed");}}
 
-    Ticket submit_impl(Operation op){if(op.key.empty()||op.key.size()>(1u<<20)||op.value.size()>(1u<<24))throw std::invalid_argument("invalid BDR key/value size");std::lock_guard<std::mutex> order(submit_mu);if(closed)throw std::runtime_error("database closed");uint64_t seq=next_seq.fetch_add(1)+1;if(op.type==OperationType::Put)index.put(op.key,op.value);else index.erase(op.key);{std::lock_guard<std::mutex>qg(queue_mu);queue.push_back({seq,op.type,std::move(op.key),std::move(op.value)});}queue_cv.notify_one();return Ticket{seq};}
+    Ticket submit_impl(Operation op){
+        if(op.key.empty()||op.key.size()>(1u<<20)||op.value.size()>(1u<<24))throw std::invalid_argument("invalid BDR key/value size");
+        std::lock_guard<std::mutex> order(submit_mu);
+        if(closed)throw std::runtime_error("database closed");
+        const uint64_t seq=next_seq.load(std::memory_order_acquire)+1;
+        Pending pending{seq,op.type,std::move(op.key),std::move(op.value)};
+        {
+            std::unique_lock<std::mutex> qg(queue_mu);
+            queue.push_back(std::move(pending));
+            try{
+                const Pending& accepted=queue.back();
+                if(accepted.type==OperationType::Put)index.put(accepted.key,accepted.value);else index.erase(accepted.key);
+                next_seq.store(seq,std::memory_order_release);
+            }catch(...){
+                queue.pop_back();
+                throw;
+            }
+        }
+        queue_cv.notify_one();
+        return Ticket{seq};
+    }
 
     void writer_loop(){std::vector<Pending>local;std::vector<uint8_t>buf;buf.reserve(1<<20);for(;;){local.clear();{std::unique_lock<std::mutex>lk(queue_mu);queue_cv.wait(lk,[&]{return stop||!queue.empty();});if(stop&&queue.empty())break;while(!queue.empty()&&local.size()<options.wal_batch){local.push_back(std::move(queue.front()));queue.pop_front();}}buf.clear();for(const auto&p:local){auto r=make_record(p.seq,p.type,p.key,p.value);buf.insert(buf.end(),r.begin(),r.end());}{std::lock_guard<std::mutex>wg(wal_mu);pwrite_all(wal_fd,buf.data(),buf.size(),wal_off);wal_off+=off_t(buf.size());if(::fdatasync(wal_fd))std::abort();}durable_seq.store(local.back().seq);durable_cv.notify_all();}}
 
@@ -88,7 +108,18 @@ public:
 
     void checkpoint_impl(){std::lock_guard<std::mutex>sg(submit_mu);if(closed)throw std::runtime_error("database closed");uint64_t seq=next_seq.load();wait_impl(Ticket{seq});auto items=index.snapshot_items();auto bytes=encode_snapshot(seq,items);fs::path tmp=dir/"snapshot.tmp",dst=dir/"snapshot.bdr3";int sfd=::open(tmp.c_str(),O_CREAT|O_TRUNC|O_WRONLY,0644);if(sfd<0)throw std::runtime_error("snapshot temp open failed");write_all(sfd,bytes.data(),bytes.size());if(::fsync(sfd)){::close(sfd);throw std::runtime_error("snapshot fsync failed");}::close(sfd);fs::rename(tmp,dst);fsync_dir(dir);std::lock_guard<std::mutex>wg(wal_mu);if(wal_fd>=0){if(::fsync(wal_fd))throw std::runtime_error("pre-rotation fsync failed");::close(wal_fd);wal_fd=-1;}create_wal(segment_id+1,seq+1);fsync_dir(dir);for(const auto&e:fs::directory_iterator(dir))if(e.is_regular_file()&&e.path().extension()==".bdw3"&&e.path()!=active_wal)fs::remove(e.path());fsync_dir(dir);}
 
-    void close_impl(){if(closed)return;sync_impl();{std::lock_guard<std::mutex>qg(queue_mu);stop=true;}queue_cv.notify_one();if(writer.joinable())writer.join();{std::lock_guard<std::mutex>wg(wal_mu);if(wal_fd>=0){::fdatasync(wal_fd);::close(wal_fd);wal_fd=-1;}}closed=true;}
+    void close_impl(){
+        {
+            std::lock_guard<std::mutex> sg(submit_mu);
+            if(closed)return;
+            closed=true;
+        }
+        sync_impl();
+        {std::lock_guard<std::mutex>qg(queue_mu);stop=true;}
+        queue_cv.notify_one();
+        if(writer.joinable())writer.join();
+        {std::lock_guard<std::mutex>wg(wal_mu);if(wal_fd>=0){::fdatasync(wal_fd);::close(wal_fd);wal_fd=-1;}}
+    }
 };
 
 Database::Database(std::unique_ptr<Impl>p):impl_(std::move(p)){}
