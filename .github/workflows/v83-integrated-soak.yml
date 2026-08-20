@@ -1,0 +1,28 @@
+name: v83-integrated-soak
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+  workflow_dispatch:
+jobs:
+  soak:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build integrated candidate source
+        run: |
+          mkdir -p build/v83
+          python3 experimental/api_v74/harden_writer.py experimental/api_v56/src/database.cpp build/v83/db1.cpp
+          python3 experimental/api_v75/stream_snapshot.py build/v83/db1.cpp build/v83/db2.cpp
+          python3 experimental/api_v79/process_lock.py build/v83/db2.cpp build/v83/database.cpp
+      - name: Compile soak
+        run: |
+          g++ -std=c++20 -O2 -pthread -Iexperimental/api_v56/include \
+            build/v83/database.cpp experimental/api_v56/src/resolutive_index.cpp \
+            experimental/api_v83/test_integrated_soak.cpp -lz -o build/v83/v83_soak
+      - name: Run 100-cycle soak
+        run: ./build/v83/v83_soak | tee v83_soak.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v83-integrated-soak
+          path: v83_soak.log
