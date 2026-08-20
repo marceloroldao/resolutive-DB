@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(bdr VERSION 0.60.0 LANGUAGES CXX)
+project(bdr VERSION 0.61.0 LANGUAGES C CXX)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
@@ -10,6 +10,7 @@ find_package(ZLIB REQUIRED)
 add_library(bdr
     src/database.cpp
     src/resolutive_index.cpp
+    src/c_api.cpp
 )
 add_library(bdr::bdr ALIAS bdr)
 
@@ -31,7 +32,12 @@ if(BDR_BUILD_TESTS)
     enable_testing()
     add_executable(bdr_api_v56_test tests/test_api.cpp)
     target_link_libraries(bdr_api_v56_test PRIVATE bdr::bdr)
-    add_test(NAME bdr_api_contract COMMAND bdr_api_v56_test)
+    add_test(NAME bdr_cpp_api_contract COMMAND bdr_api_v56_test)
+
+    add_executable(bdr_c_api_v61_test tests/test_c_api.c)
+    target_link_libraries(bdr_c_api_v61_test PRIVATE bdr::bdr)
+    set_target_properties(bdr_c_api_v61_test PROPERTIES LINKER_LANGUAGE CXX)
+    add_test(NAME bdr_c_api_contract COMMAND bdr_c_api_v61_test)
 endif()
 
 install(TARGETS bdr
