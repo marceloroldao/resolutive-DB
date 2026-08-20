@@ -1,0 +1,35 @@
+name: v59 API market comparison
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - '.github/workflows/v59-api-market.yml'
+  workflow_dispatch:
+
+jobs:
+  market:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install database libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev liblmdb-dev libleveldb-dev librocksdb-dev libsnappy-dev liblz4-dev libzstd-dev libbz2-dev zlib1g-dev
+      - name: Build
+        run: |
+          g++ -O3 -std=c++20 \
+            -Iexperimental/api_v56/include \
+            experimental/api_v56/src/resolutive_index.cpp \
+            experimental/api_v56/src/database.cpp \
+            experimental/api_v56/tests/benchmark_market.cpp \
+            -o bdr_v59 \
+            -lsqlite3 -llmdb -lleveldb -lrocksdb -lpthread -ldl -lz -lbz2 -llz4 -lzstd -lsnappy
+      - name: Run comparison
+        run: |
+          mkdir -p benchmark-results/v59
+          ./bdr_v59 100000 128 | tee benchmark-results/v59/results.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v59-api-market-results
+          path: benchmark-results/v59/results.csv
