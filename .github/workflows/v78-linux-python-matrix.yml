@@ -1,0 +1,66 @@
+name: v78 Linux Python compatibility matrix
+
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v76/**'
+      - '.github/workflows/v78-linux-python-matrix.yml'
+  workflow_dispatch:
+
+jobs:
+  linux-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+        python: ['3.10', '3.11', '3.12']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install native build dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Build wheel
+        run: |
+          mkdir -p build/v78
+          python -m pip install --upgrade pip
+          python -m pip wheel ./experimental/api_v76 --no-deps -w build/v78
+      - name: Install wheel into current Python
+        run: python -m pip install --force-reinstall build/v78/*.whl
+      - name: Contract smoke test
+        run: |
+          unset BDR_C_LIBRARY
+          python - <<'PY' | tee build/v78/smoke-${{ matrix.python }}.txt
+          import platform, shutil, tempfile
+          from bdr_native import Database, BDR_C_ABI_VERSION
+          root=tempfile.mkdtemp(prefix='bdr-v78-')
+          try:
+              with Database(root,reserve_bytes=2*1024*1024,wal_batch=32,partition_count=32) as db:
+                  for i in range(1000):
+                      t=db.put(f'k{i}',f'v{i}')
+                      if i % 64 == 63:
+                          db.wait(t)
+                  db.sync(); db.checkpoint()
+                  assert db.size==1000
+                  seq=db.last_sequence
+              with Database(root,reserve_bytes=2*1024*1024,wal_batch=32,partition_count=32) as db:
+                  assert db.size==1000
+                  assert db.last_sequence==seq==db.durable_sequence
+                  assert db.get('k0')==b'v0'
+                  assert db.get('k999')==b'v999'
+              print(f'python={platform.python_version()},system={platform.system()},machine={platform.machine()},abi={BDR_C_ABI_VERSION},pass=1')
+          finally:
+              shutil.rmtree(root,ignore_errors=True)
+          PY
+      - name: Inspect wheel ABI dependencies
+        run: |
+          python -m pip install auditwheel
+          auditwheel show build/v78/*.whl | tee build/v78/auditwheel-${{ matrix.python }}.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v78-${{ matrix.os }}-py${{ matrix.python }}
+          path: build/v78/
