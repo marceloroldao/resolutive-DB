@@ -1,0 +1,49 @@
+name: V92 Release Candidate Audit
+
+on:
+  push:
+    branches: [ experiment/hierarchical-resolutive-addressing ]
+    paths:
+      - 'experimental/api_v86/**'
+      - 'experimental/api_v87/**'
+      - 'experimental/api_v88/**'
+      - 'experimental/api_v91/**'
+      - 'experimental/api_v92/**'
+      - '.github/workflows/v92-release-candidate-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ zlib1g-dev binutils python3-pip
+
+      - name: Build C ABI v1 for wheel staging
+        run: |
+          cmake -S experimental/api_v87 -B build/v92_stage -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/v92_stage -j2
+          mkdir -p experimental/api_v88/python/bdr_native
+          cp -L build/v92_stage/libbdr_c.so.1 experimental/api_v88/python/bdr_native/libbdr_c.so.1
+
+      - name: Run unified candidate audit
+        run: python3 experimental/api_v92/release_candidate_audit.py
+
+      - name: Show audit report
+        if: always()
+        run: |
+          cat experimental/api_v92/out/REPORT.md || true
+          cat experimental/api_v92/out/manifest.json || true
+
+      - name: Upload audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v92-release-candidate-audit
+          path: experimental/api_v92/out/
+          if-no-files-found: error
