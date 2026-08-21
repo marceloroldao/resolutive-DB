@@ -1,0 +1,51 @@
+name: V90 Native Market Final
+
+on:
+  push:
+    branches: [ experiment/hierarchical-resolutive-addressing ]
+    paths:
+      - 'experimental/api_v86/**'
+      - 'experimental/api_v87/**'
+      - 'experimental/api_v90/**'
+      - '.github/workflows/v90-native-market-final.yml'
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native databases
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ cmake zlib1g-dev libsqlite3-dev liblmdb-dev libleveldb-dev librocksdb-dev
+      - name: Build V90
+        run: |
+          mkdir -p build_v90
+          g++ -O3 -std=c++17 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/api_v86/src/database.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            experimental/api_v90/benchmark_native_market.cpp \
+            -lz -lsqlite3 -llmdb -lleveldb -lrocksdb \
+            -o build_v90/v90
+      - name: Run benchmark
+        run: build_v90/v90
+      - name: Summarize medians
+        run: |
+          python3 - <<'PY'
+          import csv, statistics
+          from collections import defaultdict
+          rows=list(csv.DictReader(open('v90_out/results.csv')))
+          g=defaultdict(list)
+          for r in rows:g[(r['engine'],r['writers'],r['window'])].append(float(r['ops_per_sec']))
+          with open('v90_out/summary.csv','w',newline='') as f:
+              w=csv.writer(f);w.writerow(['engine','writers','window','median_ops_per_sec'])
+              for k,v in sorted(g.items()):w.writerow([*k,statistics.median(v)])
+          print(open('v90_out/summary.csv').read())
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v90-native-market-results
+          path: v90_out/
