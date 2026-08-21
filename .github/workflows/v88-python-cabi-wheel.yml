@@ -1,0 +1,73 @@
+name: V88 Python C ABI v1 wheel
+
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v86/**'
+      - 'experimental/api_v87/**'
+      - 'experimental/api_v88/**'
+      - '.github/workflows/v88-python-cabi-wheel.yml'
+  workflow_dispatch:
+
+jobs:
+  wheel-contract:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ zlib1g-dev
+          python -m pip install --upgrade pip build wheel
+
+      - name: Build consolidated C ABI v1
+        run: |
+          cmake -S experimental/api_v87 -B build/v87 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/v87 -j2
+          ctest --test-dir build/v87 --output-on-failure
+
+      - name: Embed native library into Python package
+        run: |
+          mkdir -p experimental/api_v88/python/bdr_native
+          cp -L build/v87/libbdr_c.so.1.0.0 experimental/api_v88/python/bdr_native/libbdr_c.so.1.0.0
+          cp -L build/v87/libbdr_c.so.1 experimental/api_v88/python/bdr_native/libbdr_c.so.1
+          cp -L build/v87/libbdr_c.so experimental/api_v88/python/bdr_native/libbdr_c.so
+
+      - name: Build wheel
+        run: |
+          python -m build --wheel experimental/api_v88/python --outdir dist/v88
+          unzip -l dist/v88/*.whl | tee v88-wheel-contents.txt
+          grep -q 'bdr_native/libbdr_c.so.1' v88-wheel-contents.txt
+
+      - name: Install wheel in clean virtualenv
+        run: |
+          python -m venv /tmp/bdr-v88-venv
+          /tmp/bdr-v88-venv/bin/pip install --no-index dist/v88/*.whl
+          cd /tmp
+          /tmp/bdr-v88-venv/bin/python "$GITHUB_WORKSPACE/experimental/api_v88/test_v88.py"
+
+      - name: Verify no source-tree/native-env dependency
+        run: |
+          test -z "${BDR_C_LIBRARY:-}"
+          /tmp/bdr-v88-venv/bin/python - <<'PY'
+          import bdr_native
+          from pathlib import Path
+          p = Path(bdr_native.__file__).resolve().parent
+          assert (p / 'libbdr_c.so.1').exists()
+          print('native_library=', p / 'libbdr_c.so.1')
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v88-wheel-py${{ matrix.python-version }}
+          path: |
+            dist/v88/*.whl
+            v88-wheel-contents.txt
