@@ -1,0 +1,53 @@
+name: V89 Installed Python benchmark
+
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v86/**'
+      - 'experimental/api_v87/**'
+      - 'experimental/api_v88/**'
+      - 'experimental/api_v89/**'
+      - '.github/workflows/v89-installed-python-benchmark.yml'
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ zlib1g-dev
+          python -m pip install --upgrade pip build wheel
+
+      - name: Build C ABI v1 and wheel
+        run: |
+          cmake -S experimental/api_v87 -B build/v87 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/v87 -j2
+          ctest --test-dir build/v87 --output-on-failure
+          mkdir -p experimental/api_v88/python/bdr_native
+          cp -L build/v87/libbdr_c.so.1.0.0 experimental/api_v88/python/bdr_native/libbdr_c.so.1.0.0
+          cp -L build/v87/libbdr_c.so.1 experimental/api_v88/python/bdr_native/libbdr_c.so.1
+          cp -L build/v87/libbdr_c.so experimental/api_v88/python/bdr_native/libbdr_c.so
+          python -m build --wheel experimental/api_v88/python --outdir dist/v88
+
+      - name: Install wheel in isolated environment
+        run: |
+          python -m venv /tmp/bdr-v89-venv
+          /tmp/bdr-v89-venv/bin/pip install --no-index dist/v88/*.whl
+
+      - name: Benchmark durability parity
+        run: |
+          /tmp/bdr-v89-venv/bin/python experimental/api_v89/benchmark_installed_python.py --out v89-results.csv
+          cat v89-results.csv
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v89-installed-python-results
+          path: v89-results.csv
