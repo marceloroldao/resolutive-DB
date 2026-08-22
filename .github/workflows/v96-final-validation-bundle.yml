@@ -71,7 +71,7 @@ jobs:
         run: |
           . venv/bin/activate
           mkdir -p v96_out
-          python experimental/api_v89/benchmark_python_installed.py | tee v96_out/v89_console.txt
+          python experimental/api_v89/benchmark_installed_python.py | tee v96_out/v89_console.txt
           if [ -f experimental/api_v89/results.csv ]; then cp experimental/api_v89/results.csv v96_out/v89_results.csv; fi
           if [ -f v89_out/results.csv ]; then cp v89_out/results.csv v96_out/v89_results.csv; fi
 
