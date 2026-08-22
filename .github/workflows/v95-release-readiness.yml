@@ -1,0 +1,61 @@
+name: V95 Release Readiness Matrix
+
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v86/**'
+      - 'experimental/api_v87/**'
+      - 'experimental/api_v88/**'
+      - 'experimental/api_v91/**'
+      - 'experimental/api_v93/**'
+      - 'experimental/api_v94/**'
+      - 'experimental/api_v95/**'
+      - '.github/workflows/v95-release-readiness.yml'
+  workflow_dispatch:
+
+jobs:
+  readiness:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build zlib1g-dev python3-venv python3-pip
+      - name: Build and test consolidated C++ core
+        run: |
+          cmake -S experimental/api_v86 -B build-v86 -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-v86
+          ctest --test-dir build-v86 --output-on-failure
+      - name: Build and test C ABI v1
+        run: |
+          cmake -S experimental/api_v87 -B build-v87 -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-v87
+          ctest --test-dir build-v87 --output-on-failure
+      - name: Verify exported ABI symbols
+        run: |
+          nm -D --defined-only build-v87/libbdr_c.so.1.0.0 | awk '{print $3}' | grep '^bdr_' | sort > /tmp/symbols.txt
+          for s in bdr_abi_version bdr_options_init bdr_open bdr_close bdr_put bdr_put_sync bdr_get bdr_delete bdr_delete_sync bdr_wait bdr_sync bdr_checkpoint bdr_last_sequence bdr_durable_sequence bdr_size bdr_last_error; do grep -qx "$s" /tmp/symbols.txt; done
+      - name: Native install package smoke
+        run: |
+          cmake -S experimental/api_v94 -B build-v94 -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PWD/v95-prefix"
+          cmake --build build-v94
+          cmake --install build-v94
+          test -f v95-prefix/include/bdr/database.hpp
+          test -f v95-prefix/include/bdr/bdr_c.h
+      - name: Python wheel smoke
+        run: |
+          python3 -m venv v95-venv
+          . v95-venv/bin/activate
+          python -m pip install --upgrade pip build
+          python -m build --wheel experimental/api_v88/python
+          python -m pip install experimental/api_v88/python/dist/*.whl
+          python experimental/api_v88/test_v88.py
+      - name: Generate readiness matrix
+        run: python3 experimental/api_v95/release_readiness.py
+      - name: Upload readiness artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: v95-release-readiness
+          path: experimental/api_v95/out/
