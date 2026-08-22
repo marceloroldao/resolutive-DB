@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.16)
+project(bdr_v94_consumer LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+find_package(bdr CONFIG REQUIRED)
+add_executable(v94_consumer main.cpp)
+target_link_libraries(v94_consumer PRIVATE bdr::bdr)
