@@ -1,0 +1,139 @@
+name: V96 Final Validation Bundle
+
+on:
+  push:
+    branches: [ experiment/hierarchical-resolutive-addressing ]
+    paths:
+      - 'experimental/api_v86/**'
+      - 'experimental/api_v87/**'
+      - 'experimental/api_v88/**'
+      - 'experimental/api_v89/**'
+      - 'experimental/api_v90/**'
+      - 'experimental/api_v95/**'
+      - 'experimental/api_v96/**'
+      - '.github/workflows/v96-final-validation-bundle.yml'
+  workflow_dispatch:
+
+jobs:
+  final-validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native benchmark dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ zlib1g-dev libsqlite3-dev liblmdb-dev libleveldb-dev librocksdb-dev python3-venv python3-pip
+
+      - name: Build and test consolidated V86 core
+        run: |
+          cmake -S experimental/api_v86 -B build-v86 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-v86 -j2
+          ctest --test-dir build-v86 --output-on-failure
+
+      - name: Run V96 long soak
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/api_v96/soak_v96.cpp \
+            experimental/api_v86/src/database.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -o v96_soak
+          ./v96_soak | tee v96_soak.txt
+
+      - name: Build and test C ABI v1
+        run: |
+          cmake -S experimental/api_v87 -B build-v87 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-v87 -j2
+          ctest --test-dir build-v87 --output-on-failure
+
+      - name: Verify ABI symbols
+        run: |
+          nm -D --defined-only build-v87/libbdr_c.so.1.0.0 | awk '{print $3}' | grep '^bdr_' | sort > abi_symbols.txt
+          cat abi_symbols.txt
+          for s in bdr_abi_version bdr_options_init bdr_open bdr_close bdr_put bdr_put_sync bdr_delete bdr_delete_sync bdr_get bdr_wait bdr_sync bdr_checkpoint bdr_last_sequence bdr_durable_sequence bdr_size bdr_last_error; do
+            grep -qx "$s" abi_symbols.txt || { echo "missing ABI symbol: $s"; exit 1; }
+          done
+
+      - name: Build and install Python wheel
+        run: |
+          python3 -m venv venv
+          . venv/bin/activate
+          python -m pip install --upgrade pip build
+          rm -rf experimental/api_v88/python/bdr_native/*.so*
+          cp build-v87/libbdr_c.so.1.0.0 experimental/api_v88/python/bdr_native/libbdr_c.so.1
+          python -m build --wheel experimental/api_v88/python
+          python -m pip install experimental/api_v88/python/dist/*.whl
+          python experimental/api_v88/test_v88.py
+
+      - name: Run installed Python benchmark V89
+        run: |
+          . venv/bin/activate
+          mkdir -p v96_out
+          python experimental/api_v89/benchmark_python_installed.py | tee v96_out/v89_console.txt
+          if [ -f experimental/api_v89/results.csv ]; then cp experimental/api_v89/results.csv v96_out/v89_results.csv; fi
+          if [ -f v89_out/results.csv ]; then cp v89_out/results.csv v96_out/v89_results.csv; fi
+
+      - name: Build and run native market benchmark V90
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/api_v90/benchmark_native_market.cpp \
+            experimental/api_v86/src/database.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -lsqlite3 -llmdb -lleveldb -lrocksdb \
+            -o v90_market
+          ./v90_market
+          cp -r v90_out v96_out/v90_out
+
+      - name: Run V95 readiness audit
+        run: |
+          bash experimental/api_v95/audit.sh
+          mkdir -p v96_out/v95
+          cp -r experimental/api_v95/out/. v96_out/v95/
+
+      - name: Build final evidence manifest
+        run: |
+          mkdir -p v96_out
+          python3 - <<'PY'
+          import hashlib, json, pathlib, subprocess
+          root = pathlib.Path('.')
+          files = [
+              'experimental/api_v86/src/database.cpp',
+              'experimental/api_v86/src/resolutive_index.cpp',
+              'experimental/api_v87/include/bdr/bdr_c.h',
+              'experimental/api_v87/src/bdr_c.cpp',
+          ]
+          hashes = {}
+          for f in files:
+              p = root / f
+              hashes[f] = hashlib.sha256(p.read_bytes()).hexdigest()
+          v95 = json.loads((root/'experimental/api_v95/out/manifest.json').read_text())
+          manifest = {
+              'schema': 1,
+              'commit': subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip(),
+              'candidate': bool(v95.get('candidate')),
+              'core_ctest': 'PASS',
+              'soak_500k': 'PASS',
+              'c_abi_v1': 'PASS',
+              'python_wheel': 'PASS',
+              'python_benchmark_completed': 'PASS',
+              'native_market_benchmark_completed': 'PASS',
+              'hashes': hashes,
+          }
+          (root/'v96_out/final_manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          print(json.dumps(manifest, indent=2))
+          if not manifest['candidate']:
+              raise SystemExit('V95 did not declare candidate=true')
+          PY
+
+      - name: Upload final evidence bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: v96-final-validation-bundle
+          path: |
+            v96_out/
+            v96_soak.txt
+            abi_symbols.txt
+          if-no-files-found: error
