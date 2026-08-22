@@ -1,0 +1,77 @@
+name: V93 External Consumption
+
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v86/**'
+      - 'experimental/api_v87/**'
+      - 'experimental/api_v88/**'
+      - 'experimental/api_v93/**'
+      - '.github/workflows/v93-external-consumption.yml'
+  workflow_dispatch:
+
+jobs:
+  external-consumption:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake zlib1g-dev python3-venv python3-pip
+
+      - name: Build C++ core and C ABI
+        run: |
+          cmake -S experimental/api_v86 -B build/v86 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/v86 -j2
+          cmake -S experimental/api_v87 -B build/v87 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/v87 -j2
+          ctest --test-dir build/v87 --output-on-failure
+
+      - name: Compile and run C++ external quickstart
+        run: |
+          g++ -std=c++17 -O2 \
+            experimental/api_v93/quickstart_cpp.cpp \
+            experimental/api_v86/src/database.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -Iexperimental/api_v86/include -lz -pthread \
+            -o build/v93_cpp
+          ./build/v93_cpp
+
+      - name: Compile and run C external quickstart
+        run: |
+          cc -std=c11 -O2 experimental/api_v93/quickstart_c.c \
+            -Iexperimental/api_v87/include \
+            -Lbuild/v87 -lbdr_c \
+            -Wl,-rpath,$PWD/build/v87 \
+            -o build/v93_c
+          ./build/v93_c
+
+      - name: Build self-contained Python wheel
+        run: |
+          python3 -m venv .venv-build
+          . .venv-build/bin/activate
+          pip install --upgrade pip build
+          cp -Lf build/v87/libbdr_c.so.1 experimental/api_v88/python/bdr_native/libbdr_c.so.1
+          python -m build --wheel experimental/api_v88/python
+
+      - name: Install wheel in clean environment and run Python quickstart
+        run: |
+          python3 -m venv .venv-user
+          . .venv-user/bin/activate
+          pip install experimental/api_v88/python/dist/*.whl
+          unset BDR_C_LIBRARY || true
+          python experimental/api_v93/quickstart_python.py
+
+      - name: Verify no source-tree library dependency
+        run: |
+          . .venv-user/bin/activate
+          python - <<'PY'
+          import bdr_native, pathlib
+          p = pathlib.Path(bdr_native.__file__).resolve().parent
+          libs = list(p.glob('libbdr_c.so*'))
+          assert libs, f'no bundled libbdr_c in {p}'
+          print('bundled:', [x.name for x in libs])
+          PY
