@@ -1,8 +1,10 @@
 # BDR v0.2.0-rc1 — Release Candidate Notes
 
-**Staged release candidate. Not tagged or published yet.**
+**Published release candidate. Experimental; not production-ready.**
 
 BDR v0.2.0-rc1 is the first API-capable release-candidate line of the Banco de Dados Resolutivo (BDR) / Resolutive Database Engine.
+
+Software DOI: **10.5281/zenodo.22074886**
 
 ## Highlights
 
@@ -10,7 +12,7 @@ BDR v0.2.0-rc1 is the first API-capable release-candidate line of the Banco de D
 - Deterministic `rho + local Robin Hood + fingerprint` addressing path.
 - C++ API for open/get/put/delete/wait/sync/checkpoint/close.
 - Frozen C ABI v1 for foreign-language integration.
-- Python package `bdr-native` staged at version `0.2.0rc1`, consuming the C ABI v1.
+- Python package `bdr-native` at version `0.2.0rc1`, consuming the C ABI v1.
 - CMake install package for external C/C++ consumers.
 - BDW3 write-ahead log with header and record integrity checks.
 - BDR3 checkpoints with CRC validation.
@@ -57,7 +59,7 @@ The native benchmark against SQLite, LMDB, LevelDB and RocksDB completed success
 
 Published `v0.1.0` remains the immutable historical research baseline.
 
-The candidate uses BDR3 snapshots and BDW3 WAL segments. Any future incompatible format change must use an explicit new version/magic and migration documentation.
+The release candidate uses BDR3 snapshots and BDW3 WAL segments. Any future incompatible format change must use an explicit new version/magic and migration documentation.
 
 ## Licensing
 
@@ -75,4 +77,4 @@ The project is not represented as production-ready and does not claim strict wor
 
 ## Publication state
 
-No tag, GitHub Release, Zenodo software release, DOI update or merge to `main` has been performed as part of this staging step.
+The v0.2.0-rc1 metadata is aligned in `CITATION.cff`, `.zenodo.json`, the Python package metadata and the repository release documentation. The software DOI recorded for this release candidate is **10.5281/zenodo.22074886**.
