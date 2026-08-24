@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.2.0-rc1 — Experimental / Release Candidate
+
+First API-capable release-candidate line of the Resolutive Database Engine (BDR).
+
+### Core and integration
+- Consolidated persistent C++ database core.
+- Deterministic `rho + local Robin Hood + fingerprint` addressing path.
+- Variable-length binary values.
+- C++ API for open/get/put/delete/wait/sync/checkpoint/close.
+- Frozen C ABI v1.
+- Native Python package `bdr-native` version `0.2.0rc1`.
+
+### Persistence
+- BDW3 write-ahead log with sequence and integrity checks.
+- BDR3 snapshots/checkpoints with CRC validation.
+- Streaming snapshot recovery.
+- Torn final WAL tail repair.
+- Exclusive process-level database lock.
+- Writer I/O error propagation through the API.
+
+### Validation
+- V100 evidence closure: `candidate: true`.
+- V86 core contract: PASS.
+- 500,000-mutation soak: PASS.
+- C ABI v1 contract and exact symbol set: PASS.
+- Installed Python wheel: PASS.
+- Python and native market benchmarks completed.
+- Readiness V95, metadata V97 and staging V98 audits: PASS.
+
+### Publication
+- Software DOI: 10.5281/zenodo.22074886.
+- v0.1.0 remains the immutable historical research baseline.
+
+### Status
+Experimental release candidate; not production-ready. Performance claims remain workload-specific and the project does not claim strict worst-case O(1) complexity for the complete engine.
+
 ## 0.1.0 — Experimental / Research Preview
 
 Initial reproducible research release of the Resolutive Database Engine (BDR).
