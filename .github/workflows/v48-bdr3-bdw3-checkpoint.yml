@@ -1,0 +1,21 @@
+name: v48 BDR3 plus BDW3 checkpoint
+on:
+  push:
+    branches:
+      - experiment/hierarchical-resolutive-addressing
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: g++ -O3 -std=c++20 benchmarks/bdr_v48_bdr3_bdw3_checkpoint.cpp -o bdr_v48 -lz
+      - name: Run integrated checkpoint validation
+        run: |
+          mkdir -p benchmark-results/v48
+          ./bdr_v48 | tee benchmark-results/v48/results.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v48-bdr3-bdw3-checkpoint-results
+          path: benchmark-results/v48/results.csv

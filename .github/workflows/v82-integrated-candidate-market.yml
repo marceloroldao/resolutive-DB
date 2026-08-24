@@ -1,0 +1,78 @@
+name: v82 Integrated API candidate vs market
+
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v74/**'
+      - 'experimental/api_v75/**'
+      - 'experimental/api_v79/**'
+      - 'experimental/api_v82/**'
+      - 'benchmarks/bdr_v51_bdw3_multiwriter_keep_size.cpp'
+      - 'benchmarks/bdr_v52_bdw3_market.cpp'
+      - '.github/workflows/v82-integrated-candidate-market.yml'
+  workflow_dispatch:
+
+jobs:
+  market:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install benchmark dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            g++ zlib1g-dev libsqlite3-dev liblmdb-dev libleveldb-dev librocksdb-dev
+      - name: Compose integrated candidate
+        run: |
+          mkdir -p build/v82
+          python3 experimental/api_v74/harden_writer.py \
+            experimental/api_v56/src/database.cpp build/v82/database_v74.cpp
+          python3 experimental/api_v75/stream_snapshot.py \
+            build/v82/database_v74.cpp build/v82/database_v75.cpp
+          python3 experimental/api_v79/process_lock.py \
+            build/v82/database_v75.cpp build/v82/database_candidate.cpp
+      - name: Compile native market benchmark
+        run: |
+          g++ -std=c++20 -O2 -pthread \
+            -Iexperimental/api_v56/include \
+            build/v82/database_candidate.cpp \
+            experimental/api_v56/src/resolutive_index.cpp \
+            experimental/api_v82/benchmark_candidate_market.cpp \
+            -lsqlite3 -llmdb -lleveldb -lrocksdb -lz \
+            -o build/v82/market
+      - name: Run 100k benchmark three times
+        run: |
+          set -euo pipefail
+          for r in 1 2 3; do
+            build/v82/market 100000 128 > "build/v82/run${r}.csv"
+          done
+      - name: Summarize medians
+        run: |
+          python3 - <<'PY'
+          import csv, statistics
+          from collections import defaultdict
+          from pathlib import Path
+          vals=defaultdict(list)
+          for r in range(1,4):
+              rows=list(csv.DictReader(Path(f'build/v82/run{r}.csv').open()))
+              for row in rows:
+                  if int(row['errors'])!=0:
+                      raise SystemExit(f"correctness error: run={r} row={row}")
+                  vals[(row['engine'],int(row['writers']))].append(float(row['throughput_ops_s']))
+          lines=['engine,writers,median_ops_s,min_ops_s,max_ops_s\n']
+          for (engine,writers),xs in sorted(vals.items(),key=lambda x:(x[0][1],x[0][0])):
+              med=statistics.median(xs)
+              lines.append(f'{engine},{writers},{med},{min(xs)},{max(xs)}\n')
+              print(f'{engine:20s} writers={writers:2d} median={med:,.0f} ops/s')
+          Path('build/v82/summary.csv').write_text(''.join(lines))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v82-integrated-candidate-market-results
+          path: |
+            build/v82/run1.csv
+            build/v82/run2.csv
+            build/v82/run3.csv
+            build/v82/summary.csv

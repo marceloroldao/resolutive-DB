@@ -1,0 +1,32 @@
+name: v84-format-compat
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+  workflow_dispatch:
+jobs:
+  compat:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build baseline and integrated candidates
+        run: |
+          mkdir -p build/v84
+          g++ -std=c++20 -O2 -pthread -Iexperimental/api_v56/include \
+            experimental/api_v56/src/database.cpp experimental/api_v56/src/resolutive_index.cpp \
+            experimental/api_v84/test_format_compat.cpp -lz -o build/v84/compat_v56
+          python3 experimental/api_v74/harden_writer.py experimental/api_v56/src/database.cpp build/v84/db1.cpp
+          python3 experimental/api_v75/stream_snapshot.py build/v84/db1.cpp build/v84/db2.cpp
+          python3 experimental/api_v79/process_lock.py build/v84/db2.cpp build/v84/database.cpp
+          g++ -std=c++20 -O2 -pthread -Iexperimental/api_v56/include \
+            build/v84/database.cpp experimental/api_v56/src/resolutive_index.cpp \
+            experimental/api_v84/test_format_compat.cpp -lz -o build/v84/compat_integrated
+      - name: V56 -> integrated -> V56 compatibility
+        run: |
+          rm -rf v84-db
+          ./build/v84/compat_v56 create v84-db
+          ./build/v84/compat_integrated upgrade v84-db
+          ./build/v84/compat_v56 verify v84-db | tee v84_compat.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v84-format-compat
+          path: v84_compat.log

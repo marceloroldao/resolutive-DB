@@ -1,0 +1,33 @@
+name: v0.2 multi-db benchmark
+
+on:
+  push:
+    branches:
+      - experiment/v0.2-cpp-encoder
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install database development libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ libsqlite3-dev liblmdb-dev libleveldb-dev librocksdb-dev
+      - name: Build benchmark
+        run: |
+          g++ -O3 -std=c++17 benchmarks/bdr_v16_multi_db_compare.cpp -o bdr_v16_multi_db_compare \
+            -lsqlite3 -llmdb -lleveldb -lrocksdb -lpthread -ldl -lz -lbz2 -lsnappy -llz4 -lzstd
+      - name: Run benchmark three times
+        run: |
+          mkdir -p benchmark-results
+          for i in 1 2 3; do
+            ./bdr_v16_multi_db_compare | tee benchmark-results/run_${i}.csv
+          done
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: bdr-v16-multidb-results
+          path: benchmark-results/

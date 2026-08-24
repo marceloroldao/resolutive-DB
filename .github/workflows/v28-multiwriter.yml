@@ -1,0 +1,19 @@
+name: v28 multiwriter
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+  workflow_dispatch:
+jobs:
+  multiwriter:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: g++ -O3 -std=c++20 benchmarks/bdr_v28_multiwriter.cpp -o bdr_v28 -lz -lpthread
+      - run: |
+          mkdir -p benchmark-results/v28
+          for rep in 1 2 3; do ./bdr_v28 100000 128 > benchmark-results/v28/run_${rep}.csv; done
+          ./bdr_v28 100000 32 > benchmark-results/v28/run_batch32.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v28-multiwriter-results
+          path: benchmark-results/v28/

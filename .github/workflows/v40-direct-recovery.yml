@@ -1,0 +1,20 @@
+name: v40 direct partition recovery
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: g++ -O3 -std=c++20 benchmarks/bdr_v40_direct_partition_recovery.cpp -o bdr_v40 -lz
+      - name: Run 1M direct recovery
+        run: |
+          mkdir -p benchmark-results/v40
+          ./bdr_v40 1000000 | tee benchmark-results/v40/direct_recovery.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v40-direct-recovery-results
+          path: benchmark-results/v40/direct_recovery.csv

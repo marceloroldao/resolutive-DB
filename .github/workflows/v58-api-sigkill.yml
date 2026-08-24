@@ -1,0 +1,30 @@
+name: v58 API SIGKILL recovery
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - '.github/workflows/v58-api-sigkill.yml'
+  workflow_dispatch:
+
+jobs:
+  crash:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          g++ -O3 -std=c++20 \
+            -Iexperimental/api_v56/include \
+            experimental/api_v56/src/resolutive_index.cpp \
+            experimental/api_v56/src/database.cpp \
+            experimental/api_v56/tests/test_sigkill.cpp \
+            -o bdr_v58 -lz -lpthread
+      - name: Run crash recovery
+        run: |
+          mkdir -p benchmark-results/v58
+          ./bdr_v58 | tee benchmark-results/v58/results.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v58-api-sigkill-results
+          path: benchmark-results/v58/results.csv

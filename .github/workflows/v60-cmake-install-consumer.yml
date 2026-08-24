@@ -1,0 +1,35 @@
+name: v60 CMake install and external consumer
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v60_consumer/**'
+      - '.github/workflows/v60-cmake-install-consumer.yml'
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure library
+        run: cmake -S experimental/api_v56 -B build-v60 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/install-v60
+      - name: Build library and tests
+        run: cmake --build build-v60 -j2
+      - name: Run API contract tests
+        run: ctest --test-dir build-v60 --output-on-failure
+      - name: Install package
+        run: cmake --install build-v60
+      - name: Configure external consumer
+        run: cmake -S experimental/api_v60_consumer -B build-consumer -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$PWD/install-v60
+      - name: Build external consumer
+        run: cmake --build build-consumer -j2
+      - name: Run external consumer
+        run: |
+          mkdir -p benchmark-results/v60
+          ./build-consumer/bdr_external_consumer | tee benchmark-results/v60/results.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v60-cmake-install-consumer-results
+          path: benchmark-results/v60/results.csv

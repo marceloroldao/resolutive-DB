@@ -1,0 +1,33 @@
+#include "bdr/database.hpp"
+
+#include <atomic>
+#include <chrono>
+#include <filesystem>
+#include <iostream>
+#include <string>
+#include <thread>
+#include <vector>
+#include <sqlite3.h>
+#include <lmdb.h>
+#include <leveldb/db.h>
+#include <leveldb/write_batch.h>
+#include <rocksdb/db.h>
+#include <rocksdb/write_batch.h>
+
+namespace fs=std::filesystem;using Clock=std::chrono::steady_clock;
+struct R{std::string engine;int writers;int window;double ops;uint64_t errors;};
+static std::atomic<int>gnext;
+static std::string K(int i){return "K"+std::to_string(i);}static std::string V(int i){return "V"+std::to_string(i);}template<class F>static double timed(F&&f){auto a=Clock::now();f();return std::chrono::duration<double>(Clock::now()-a).count();}
+
+static R run_bdr(int total,int writers,int window){fs::path d="v59.bdr";fs::remove_all(d);bdr::Options o;o.partition_count=4096;o.wal_batch=512;o.reserve_bytes=size_t(total)*128+4096;auto db=bdr::Database::open(d,o);gnext=0;double sec=timed([&]{std::vector<std::thread>ts;for(int x=0;x<writers;++x)ts.emplace_back([&]{bdr::Ticket last{};int pending=0;for(;;){int i=gnext.fetch_add(1);if(i>=total)break;last=db->put(K(i),V(i));if(++pending>=window){db->wait(last);pending=0;}}if(pending)db->wait(last);});for(auto&t:ts)t.join();db->sync();});db->close();uint64_t err=0;auto r=bdr::Database::open(d,o);for(int i=0;i<total;++i)if(r->get(K(i)).value_or("")!=V(i))++err;if(r->size()!=size_t(total))++err;r->close();return{"BDR-API-v59",writers,window,total/sec,err};}
+
+static void sql_retry(sqlite3*d,const char*s){for(;;){int rc=sqlite3_exec(d,s,nullptr,nullptr,nullptr);if(rc==SQLITE_OK)return;if(rc!=SQLITE_BUSY&&rc!=SQLITE_LOCKED)throw std::runtime_error("sqlite exec");std::this_thread::yield();}}
+static R run_sqlite(int total,int writers,int window){fs::remove("v59.sqlite");sqlite3*d=nullptr;sqlite3_open("v59.sqlite",&d);sqlite3_busy_timeout(d,30000);sqlite3_exec(d,"PRAGMA journal_mode=WAL;PRAGMA synchronous=FULL;CREATE TABLE kv(k TEXT PRIMARY KEY,v TEXT);",0,0,0);sqlite3_close(d);gnext=0;std::atomic<uint64_t>err{0};double sec=timed([&]{std::vector<std::thread>ts;for(int x=0;x<writers;++x)ts.emplace_back([&]{sqlite3*c=nullptr;sqlite3_open("v59.sqlite",&c);sqlite3_busy_timeout(c,30000);sqlite3_exec(c,"PRAGMA journal_mode=WAL;PRAGMA synchronous=FULL;",0,0,0);sqlite3_stmt*s=nullptr;sqlite3_prepare_v2(c,"INSERT INTO kv VALUES(?,?)",-1,&s,0);for(;;){std::vector<int>ids;for(int j=0;j<window;++j){int i=gnext.fetch_add(1);if(i>=total)break;ids.push_back(i);}if(ids.empty())break;sql_retry(c,"BEGIN IMMEDIATE");for(int i:ids){auto k=K(i),v=V(i);sqlite3_bind_text(s,1,k.c_str(),-1,SQLITE_TRANSIENT);sqlite3_bind_text(s,2,v.c_str(),-1,SQLITE_TRANSIENT);if(sqlite3_step(s)!=SQLITE_DONE)err++;sqlite3_reset(s);sqlite3_clear_bindings(s);}sql_retry(c,"COMMIT");}sqlite3_finalize(s);sqlite3_close(c);});for(auto&t:ts)t.join();});sqlite3_open("v59.sqlite",&d);sqlite3_stmt*s=nullptr;sqlite3_prepare_v2(d,"SELECT v FROM kv WHERE k=?",-1,&s,0);for(int i=0;i<total;++i){auto k=K(i);sqlite3_bind_text(s,1,k.c_str(),-1,SQLITE_TRANSIENT);if(sqlite3_step(s)!=SQLITE_ROW||std::string((const char*)sqlite3_column_text(s,0))!=V(i))err++;sqlite3_reset(s);sqlite3_clear_bindings(s);}sqlite3_finalize(s);sqlite3_close(d);return{"SQLite",writers,window,total/sec,err.load()};}
+
+static R run_lmdb(int total,int writers,int window){fs::remove_all("v59.lmdb");fs::create_directory("v59.lmdb");MDB_env*e=nullptr;MDB_txn*t=nullptr;MDB_dbi db=0;mdb_env_create(&e);mdb_env_set_mapsize(e,1ull<<30);mdb_env_open(e,"v59.lmdb",0,0644);mdb_txn_begin(e,nullptr,0,&t);mdb_dbi_open(t,nullptr,MDB_CREATE,&db);mdb_txn_commit(t);gnext=0;std::atomic<uint64_t>err{0};double sec=timed([&]{std::vector<std::thread>ts;for(int x=0;x<writers;++x)ts.emplace_back([&]{for(;;){std::vector<int>ids;for(int j=0;j<window;++j){int i=gnext.fetch_add(1);if(i>=total)break;ids.push_back(i);}if(ids.empty())break;MDB_txn*tx=nullptr;if(mdb_txn_begin(e,nullptr,0,&tx)){err++;break;}for(int i:ids){auto ks=K(i),vs=V(i);MDB_val k{ks.size(),(void*)ks.data()},v{vs.size(),(void*)vs.data()};if(mdb_put(tx,db,&k,&v,0))err++;}if(mdb_txn_commit(tx))err++;}});for(auto&th:ts)th.join();});mdb_txn_begin(e,nullptr,MDB_RDONLY,&t);for(int i=0;i<total;++i){auto ks=K(i);MDB_val k{ks.size(),(void*)ks.data()},v{};if(mdb_get(t,db,&k,&v)||std::string((char*)v.mv_data,v.mv_size)!=V(i))err++;}mdb_txn_abort(t);mdb_dbi_close(e,db);mdb_env_close(e);return{"LMDB",writers,window,total/sec,err.load()};}
+
+static R run_level(int total,int writers,int window){fs::remove_all("v59.level");leveldb::DB*d=nullptr;leveldb::Options o;o.create_if_missing=true;if(!leveldb::DB::Open(o,"v59.level",&d).ok())throw std::runtime_error("level open");leveldb::WriteOptions wo;wo.sync=true;gnext=0;std::atomic<uint64_t>err{0};double sec=timed([&]{std::vector<std::thread>ts;for(int x=0;x<writers;++x)ts.emplace_back([&]{for(;;){leveldb::WriteBatch b;int n=0;for(;n<window;++n){int i=gnext.fetch_add(1);if(i>=total)break;b.Put(K(i),V(i));}if(!n)break;if(!d->Write(wo,&b).ok())err++;}});for(auto&th:ts)th.join();});leveldb::ReadOptions ro;for(int i=0;i<total;++i){std::string v;if(!d->Get(ro,K(i),&v).ok()||v!=V(i))err++;}delete d;return{"LevelDB",writers,window,total/sec,err.load()};}
+
+static R run_rocks(int total,int writers,int window){fs::remove_all("v59.rocks");rocksdb::DB*d=nullptr;rocksdb::Options o;o.create_if_missing=true;if(!rocksdb::DB::Open(o,"v59.rocks",&d).ok())throw std::runtime_error("rocks open");rocksdb::WriteOptions wo;wo.sync=true;gnext=0;std::atomic<uint64_t>err{0};double sec=timed([&]{std::vector<std::thread>ts;for(int x=0;x<writers;++x)ts.emplace_back([&]{for(;;){rocksdb::WriteBatch b;int n=0;for(;n<window;++n){int i=gnext.fetch_add(1);if(i>=total)break;b.Put(K(i),V(i));}if(!n)break;if(!d->Write(wo,&b).ok())err++;}});for(auto&th:ts)th.join();});rocksdb::ReadOptions ro;for(int i=0;i<total;++i){std::string v;if(!d->Get(ro,K(i),&v).ok()||v!=V(i))err++;}delete d;return{"RocksDB",writers,window,total/sec,err.load()};}
+
+int main(int argc,char**argv){int total=argc>1?std::stoi(argv[1]):100000;int window=argc>2?std::stoi(argv[2]):128;std::cout<<"engine,writers,window,total,throughput_ops_s,errors\n";int fails=0;for(int writers:{1,4,8,16}){std::vector<R>rs;rs.push_back(run_bdr(total,writers,window));rs.push_back(run_sqlite(total,writers,window));rs.push_back(run_lmdb(total,writers,window));rs.push_back(run_level(total,writers,window));rs.push_back(run_rocks(total,writers,window));for(const auto&r:rs){std::cout<<r.engine<<','<<r.writers<<','<<r.window<<','<<total<<','<<r.ops<<','<<r.errors<<"\n";if(r.errors)++fails;}}return fails?2:0;}

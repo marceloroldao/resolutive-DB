@@ -1,0 +1,90 @@
+name: v80 Integrated API candidate gate
+
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v62/**'
+      - 'experimental/api_v69/**'
+      - 'experimental/api_v70/**'
+      - 'experimental/api_v71/**'
+      - 'experimental/api_v74/**'
+      - 'experimental/api_v75/**'
+      - 'experimental/api_v79/**'
+      - '.github/workflows/v80-integrated-api-candidate.yml'
+  workflow_dispatch:
+
+jobs:
+  integrated-candidate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev python3-pip
+      - name: Compose candidate database source
+        run: |
+          mkdir -p build/v80
+          python3 experimental/api_v74/harden_writer.py \
+            experimental/api_v56/src/database.cpp \
+            build/v80/database_v74.cpp
+          python3 experimental/api_v75/stream_snapshot.py \
+            build/v80/database_v74.cpp \
+            build/v80/database_v75.cpp
+          python3 experimental/api_v79/process_lock.py \
+            build/v80/database_v75.cpp \
+            build/v80/database_candidate.cpp
+      - name: Build candidate core objects
+        run: |
+          CXX='g++ -std=c++20 -O2 -pthread -fPIC -Iexperimental/api_v56/include'
+          $CXX -c build/v80/database_candidate.cpp -o build/v80/database.o
+          $CXX -c experimental/api_v56/src/resolutive_index.cpp -o build/v80/resolutive_index.o
+          ar rcs build/v80/libbdr_candidate.a build/v80/database.o build/v80/resolutive_index.o
+      - name: Build C++ gates
+        run: |
+          CXX='g++ -std=c++20 -O2 -pthread -Iexperimental/api_v56/include'
+          for spec in \
+            'api_contract experimental/api_v56/tests/test_api.cpp' \
+            'close_submit experimental/api_v69/test_close_submit_race.cpp' \
+            'checkpoint_writer experimental/api_v70/test_checkpoint_writer_race.cpp' \
+            'same_key experimental/api_v71/test_same_key_put_delete_race.cpp' \
+            'io_failure experimental/api_v74/test_writer_io_failure.cpp' \
+            'process_lock experimental/api_v79/test_process_lock.cpp'
+          do
+            name=${spec%% *}
+            src=${spec#* }
+            $CXX "$src" build/v80/libbdr_candidate.a -lz -o "build/v80/$name"
+          done
+      - name: Run C++ gates
+        run: |
+          set -euo pipefail
+          for t in api_contract close_submit checkpoint_writer same_key io_failure process_lock; do
+            echo "=== $t ===" | tee -a build/v80/cpp-results.txt
+            timeout 180s "build/v80/$t" | tee -a build/v80/cpp-results.txt
+          done
+      - name: Build candidate C ABI shared library
+        run: |
+          g++ -std=c++20 -O2 -pthread -fPIC -Iexperimental/api_v56/include \
+            -c experimental/api_v56/src/c_api.cpp -o build/v80/c_api.o
+          g++ -shared build/v80/database.o build/v80/resolutive_index.o build/v80/c_api.o \
+            -pthread -lz -o build/v80/libbdr_c.so
+      - name: Run installed Python binding contract against candidate
+        run: |
+          python3 -m pip install ./experimental/api_v62/python
+          BDR_C_LIBRARY=${{ github.workspace }}/build/v80/libbdr_c.so \
+            python3 experimental/api_v62/python/test_bdr_native.py | tee build/v80/python-result.txt
+      - name: Verify candidate source has all hardenings
+        run: |
+          grep -q 'writer_error' build/v80/database_candidate.cpp
+          grep -q 'replay_snapshot' build/v80/database_candidate.cpp
+          grep -q 'LOCK_EX|LOCK_NB' build/v80/database_candidate.cpp
+          ! grep -q 'std::abort()' build/v80/database_candidate.cpp
+          printf 'writer_error=1\nstreaming_snapshot=1\nprocess_lock=1\nabort_removed=1\n' \
+            | tee build/v80/hardening-summary.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v80-integrated-api-candidate-results
+          path: |
+            build/v80/cpp-results.txt
+            build/v80/python-result.txt
+            build/v80/hardening-summary.txt

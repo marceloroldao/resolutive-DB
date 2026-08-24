@@ -1,0 +1,27 @@
+name: V97 Release Metadata Audit
+
+on:
+  push:
+    branches: [ experiment/hierarchical-resolutive-addressing ]
+    paths:
+      - 'LICENSE'
+      - 'CITATION.cff'
+      - 'experimental/api_v88/python/pyproject.toml'
+      - 'experimental/api_v91/**'
+      - 'experimental/api_v97/**'
+      - '.github/workflows/v97-release-metadata-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  metadata-audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit release metadata without mutating published v0.1.0 metadata
+        run: python3 experimental/api_v97/audit_release_metadata.py
+      - name: Upload metadata audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: v97-release-metadata-audit
+          path: experimental/api_v97/metadata_audit.json
+          if-no-files-found: error

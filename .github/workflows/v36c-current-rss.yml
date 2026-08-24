@@ -1,0 +1,19 @@
+name: v36c current rss phases
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+  workflow_dispatch:
+jobs:
+  rss:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: g++ -O3 -std=c++20 benchmarks/bdr_v36c_current_rss_phases.cpp -o bdr_v36c -lz -lpthread
+      - run: |
+          mkdir -p benchmark-results/v36c
+          ./bdr_v36c 1000000 | tee benchmark-results/v36c/phases.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v36c-current-rss-phases
+          path: benchmark-results/v36c/

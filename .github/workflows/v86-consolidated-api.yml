@@ -1,0 +1,34 @@
+name: v86-consolidated-api
+
+on:
+  push:
+    branches:
+      - experiment/hierarchical-resolutive-addressing
+    paths:
+      - 'experimental/api_v86/**'
+      - '.github/workflows/v86-consolidated-api.yml'
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S experimental/api_v86 -B build-v86 -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build-v86 -j2
+      - name: Contract test
+        run: ctest --test-dir build-v86 --output-on-failure
+      - name: Source invariants
+        run: |
+          test "$(grep -c 'std::abort' experimental/api_v86/src/database.cpp || true)" -eq 0
+          test "$(grep -c 'writer_error' experimental/api_v86/src/database.cpp)" -gt 0
+          test "$(grep -c 'replay_snapshot' experimental/api_v86/src/database.cpp)" -gt 0
+          test "$(grep -c 'flock' experimental/api_v86/src/database.cpp)" -gt 0
+          sha256sum experimental/api_v86/src/database.cpp | tee v86-source.sha256
+      - name: Upload source identity
+        uses: actions/upload-artifact@v4
+        with:
+          name: v86-source-identity
+          path: v86-source.sha256

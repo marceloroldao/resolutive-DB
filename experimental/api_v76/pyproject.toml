@@ -1,0 +1,14 @@
+[build-system]
+requires = ["scikit-build-core>=0.10"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "bdr-native-experimental"
+version = "0.76.0"
+description = "Experimental self-contained Python wheel for the BDR native engine"
+requires-python = ">=3.10"
+
+[tool.scikit-build]
+cmake.source-dir = "."
+wheel.packages = ["python/bdr_native"]
+build-dir = "build/{wheel_tag}"

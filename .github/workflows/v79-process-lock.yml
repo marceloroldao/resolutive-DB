@@ -1,0 +1,42 @@
+name: v79 Single-process database lock
+
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v74/**'
+      - 'experimental/api_v79/**'
+      - '.github/workflows/v79-process-lock.yml'
+  workflow_dispatch:
+
+jobs:
+  process-lock:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Compose V74 writer hardening and V79 process lock
+        run: |
+          mkdir -p build/v79
+          python3 experimental/api_v74/harden_writer.py \
+            experimental/api_v56/src/database.cpp \
+            build/v79/database_hardened.cpp
+          python3 experimental/api_v79/process_lock.py \
+            build/v79/database_hardened.cpp \
+            build/v79/database_hardened_locked.cpp
+      - name: Compile process lock gate
+        run: |
+          g++ -std=c++20 -O2 -pthread \
+            -Iexperimental/api_v56/include \
+            build/v79/database_hardened_locked.cpp \
+            experimental/api_v56/src/resolutive_index.cpp \
+            experimental/api_v79/test_process_lock.cpp \
+            -lz -o build/v79/test_process_lock
+      - name: Run process lock gate
+        run: timeout 30s build/v79/test_process_lock | tee build/v79/result.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v79-process-lock-result
+          path: build/v79/result.txt

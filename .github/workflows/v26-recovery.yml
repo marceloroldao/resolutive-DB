@@ -1,0 +1,20 @@
+name: v26 recovery validation
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+  workflow_dispatch:
+jobs:
+  recovery:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: g++ -O3 -std=c++20 benchmarks/bdr_v26_recovery.cpp -o bdr_v26 -lz
+      - run: |
+          mkdir -p benchmark-results/v26
+          ./bdr_v26 10000 128 > benchmark-results/v26/run_10k.csv
+          ./bdr_v26 100000 128 > benchmark-results/v26/run_100k.csv
+          ./bdr_v26 100000 1 > benchmark-results/v26/run_100k_batch1.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v26-recovery-results
+          path: benchmark-results/v26/

@@ -1,0 +1,26 @@
+name: v65 Python API error contract
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - 'experimental/api_v62/**'
+      - 'experimental/api_v65/**'
+      - '.github/workflows/v65-python-error-contract.yml'
+  workflow_dispatch:
+
+jobs:
+  error-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure shared C ABI
+        run: cmake -S experimental/api_v62 -B experimental/api_v62/build -DCMAKE_BUILD_TYPE=Release
+      - name: Build native library
+        run: cmake --build experimental/api_v62/build -j2
+      - name: Install Python binding
+        run: python3 -m pip install ./experimental/api_v62/python
+      - name: Run V65 error contract
+        env:
+          BDR_C_LIBRARY: ${{ github.workspace }}/experimental/api_v62/build/libbdr_c.so
+        run: python3 -m unittest -v experimental/api_v65/test_python_error_contract.py

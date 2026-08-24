@@ -1,0 +1,21 @@
+name: v46 BDW3 recovery
+on:
+  push:
+    branches:
+      - experiment/hierarchical-resolutive-addressing
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: g++ -O3 -std=c++20 benchmarks/bdr_v46_bdw3_recovery.cpp -o bdr_v46 -lz
+      - name: Run recovery validation
+        run: |
+          mkdir -p benchmark-results/v46
+          ./bdr_v46 | tee benchmark-results/v46/results.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v46-bdw3-recovery-results
+          path: benchmark-results/v46/results.csv

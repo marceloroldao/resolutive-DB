@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bdr-native"
+version = "0.2.0rc1"
+description = "Python binding for the BDR C ABI v1 release candidate"
+requires-python = ">=3.10"
+
+[tool.setuptools]
+packages = ["bdr_native"]
+
+[tool.setuptools.package-data]
+bdr_native = ["libbdr_c.so", "libbdr_c.so.1", "libbdr_c.so.1.0.0"]

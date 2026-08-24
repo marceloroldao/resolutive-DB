@@ -1,0 +1,160 @@
+name: V99 PR Evidence Closure
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  evidence-closure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ zlib1g-dev libsqlite3-dev liblmdb-dev libleveldb-dev librocksdb-dev python3-venv python3-pip
+
+      - name: Build and test V86 core
+        run: |
+          cmake -S experimental/api_v86 -B build-v86 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-v86 -j2
+          ctest --test-dir build-v86 --output-on-failure
+
+      - name: Run 500k mutation soak
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/api_v96/soak_v96.cpp \
+            experimental/api_v86/src/database.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -o v99_soak
+          ./v99_soak | tee v99_soak.txt
+
+      - name: Build and test C ABI v1
+        run: |
+          cmake -S experimental/api_v87 -B build-v87 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-v87 -j2
+          ctest --test-dir build-v87 --output-on-failure
+
+      - name: Verify exact ABI symbol set
+        run: |
+          nm -D --defined-only build-v87/libbdr_c.so.1.0.0 | awk '{print $3}' | grep '^bdr_' | sort > abi_symbols.txt
+          cat > expected_abi_symbols.txt <<'EOF'
+          bdr_abi_version
+          bdr_checkpoint
+          bdr_close
+          bdr_delete
+          bdr_delete_sync
+          bdr_durable_sequence
+          bdr_get
+          bdr_last_error
+          bdr_last_sequence
+          bdr_open
+          bdr_options_init
+          bdr_put
+          bdr_put_sync
+          bdr_size
+          bdr_sync
+          bdr_wait
+          EOF
+          sort -o expected_abi_symbols.txt expected_abi_symbols.txt
+          diff -u expected_abi_symbols.txt abi_symbols.txt
+
+      - name: Build and test installed Python wheel
+        run: |
+          python3 -m venv venv
+          . venv/bin/activate
+          python -m pip install --upgrade pip build
+          rm -rf experimental/api_v88/python/bdr_native/*.so*
+          cp build-v87/libbdr_c.so.1.0.0 experimental/api_v88/python/bdr_native/libbdr_c.so.1
+          python -m build --wheel experimental/api_v88/python
+          python -m pip install experimental/api_v88/python/dist/*.whl
+          python experimental/api_v88/test_v88.py
+
+      - name: Run Python benchmark V89
+        run: |
+          . venv/bin/activate
+          mkdir -p v99_out
+          python experimental/api_v89/benchmark_installed_python.py | tee v99_out/v89_console.txt
+          if [ -f v89_out/results.csv ]; then cp v89_out/results.csv v99_out/v89_results.csv; fi
+
+      - name: Run native market benchmark V90
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/api_v90/benchmark_native_market.cpp \
+            experimental/api_v86/src/database.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -lsqlite3 -llmdb -lleveldb -lrocksdb \
+            -o v99_market
+          ./v99_market
+          cp -r v90_out v99_out/v90_out
+
+      - name: Run readiness audit V95
+        run: |
+          bash experimental/api_v95/audit.sh
+          mkdir -p v99_out/v95
+          cp -r experimental/api_v95/out/. v99_out/v95/
+
+      - name: Run metadata audit V97
+        run: |
+          python3 experimental/api_v97/audit_release_metadata.py
+          cp experimental/api_v97/metadata_audit.json v99_out/v97_metadata_audit.json
+
+      - name: Run staging audit V98
+        run: |
+          python3 experimental/api_v98/audit_staging.py
+          cp experimental/api_v98/staging_audit.json v99_out/v98_staging_audit.json
+
+      - name: Build final evidence manifest
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, pathlib, subprocess
+          root = pathlib.Path('.')
+          files = [
+              'experimental/api_v86/src/database.cpp',
+              'experimental/api_v86/src/resolutive_index.cpp',
+              'experimental/api_v87/include/bdr/bdr_c.h',
+              'experimental/api_v87/src/bdr_c.cpp',
+              'LICENSE',
+              'CITATION.cff',
+          ]
+          hashes = {f: hashlib.sha256((root/f).read_bytes()).hexdigest() for f in files}
+          v95 = json.loads((root/'experimental/api_v95/out/manifest.json').read_text())
+          v97 = json.loads((root/'experimental/api_v97/metadata_audit.json').read_text())
+          v98 = json.loads((root/'experimental/api_v98/staging_audit.json').read_text())
+          candidate = bool(v95.get('candidate')) and all(v == 'PASS' for v in v97.values()) and all(v == 'PASS' for v in v98.values())
+          manifest = {
+              'schema': 1,
+              'commit': subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip(),
+              'candidate': candidate,
+              'core_ctest': 'PASS',
+              'soak_500k': 'PASS',
+              'c_abi_v1': 'PASS',
+              'python_wheel': 'PASS',
+              'python_benchmark_completed': 'PASS',
+              'native_market_benchmark_completed': 'PASS',
+              'metadata_audit': 'PASS',
+              'staging_audit': 'PASS',
+              'hashes': hashes,
+          }
+          out = root/'v99_out/final_manifest.json'
+          out.write_text(json.dumps(manifest, indent=2) + '\n')
+          print(json.dumps(manifest, indent=2))
+          if not candidate:
+              raise SystemExit('V99 evidence closure did not reach candidate=true')
+          PY
+
+      - name: Upload final evidence bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: v99-pr-evidence-closure
+          path: |
+            v99_out/
+            v99_soak.txt
+            abi_symbols.txt
+            expected_abi_symbols.txt
+          if-no-files-found: error

@@ -1,0 +1,30 @@
+name: v56 API resolutive index
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+    paths:
+      - 'experimental/api_v56/**'
+      - '.github/workflows/v56-api-resolutive-index.yml'
+  workflow_dispatch:
+
+jobs:
+  api:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          g++ -O3 -std=c++20 \
+            -Iexperimental/api_v56/include \
+            experimental/api_v56/src/resolutive_index.cpp \
+            experimental/api_v56/src/database.cpp \
+            experimental/api_v56/tests/test_api.cpp \
+            -o bdr_v56_api -lz -lpthread
+      - name: Run contract and recovery test
+        run: |
+          mkdir -p benchmark-results/v56
+          ./bdr_v56_api | tee benchmark-results/v56/results.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v56-api-resolutive-index-results
+          path: benchmark-results/v56/results.csv

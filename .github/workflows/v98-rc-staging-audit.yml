@@ -1,0 +1,25 @@
+name: V98 RC Staging Audit
+
+on:
+  push:
+    branches: [ experiment/hierarchical-resolutive-addressing ]
+    paths:
+      - 'experimental/api_v98/**'
+      - 'LICENSE'
+      - 'CITATION.cff'
+      - '.github/workflows/v98-rc-staging-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit staging safety
+        run: python3 experimental/api_v98/audit_staging.py
+      - name: Upload staging audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: v98-rc-staging-audit
+          path: experimental/api_v98/staging_audit.json
+          if-no-files-found: error

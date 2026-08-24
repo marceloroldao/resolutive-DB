@@ -1,0 +1,20 @@
+name: v45 BDW3 framing
+on:
+  push:
+    branches: [experiment/hierarchical-resolutive-addressing]
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: g++ -O2 -std=c++20 benchmarks/bdr_v45_bdw3_framing.cpp -o bdr_v45 -lz
+      - name: Run framing validation
+        run: |
+          mkdir -p benchmark-results/v45
+          ./bdr_v45 | tee benchmark-results/v45/framing.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v45-bdw3-framing-results
+          path: benchmark-results/v45/framing.csv
