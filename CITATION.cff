@@ -3,13 +3,14 @@ message: "If you use the BDR software, please cite this software release and the
 title: "Banco de Dados Resolutivo (BDR) / Resolutive Database Engine"
 version: "0.2.0-rc1"
 date-released: 2026-08-24
+doi: "10.5281/zenodo.22074886"
 type: software
 authors:
   - family-names: "Matos"
     given-names: "Marcelo Roldão"
     orcid: "https://orcid.org/0009-0003-6075-4680"
 repository-code: "https://github.com/marceloroldao/resolutive-DB"
-url: "https://github.com/marceloroldao/resolutive-DB/releases/tag/v0.2.0-rc1"
+url: "https://github.com/marceloroldao/resolutive-DB/releases/tag/0.2.0-rc1"
 abstract: >-
   BDR is an experimental persistent key-value database research project investigating
   deterministic resolutive addressing, local partitioning, adaptive data structures,
