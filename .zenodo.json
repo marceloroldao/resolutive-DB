@@ -1,6 +1,6 @@
 {
   "title": "Banco de Dados Resolutivo (BDR) / Resolutive Database Engine",
-  "description": "BDR v0.1.0 is an experimental persistent key-value database Research Preview investigating deterministic resolutive addressing, local partitioning, adaptive structures, segmented write-ahead logging, atomic checkpoints, crash recovery, and reproducible benchmarking. This metadata describes the SOFTWARE release. The scientific preprint is a separate Zenodo publication with DOI 10.5281/zenodo.21937842 and CC BY-NC-SA 4.0 licensing.",
+  "description": "BDR v0.2.0-rc1 is an experimental API/ABI release candidate of the persistent key-value Resolutive Database Engine. It includes the consolidated C++ core, frozen C ABI v1, Python bindings, CMake package integration, BDW3 write-ahead logging, BDR3 checkpoints, streaming recovery, process-level locking, writer error propagation, and reproducible validation and benchmarking. The release is not represented as production-ready and does not claim strict worst-case O(1) complexity for the complete engine. The associated scientific preprint is a separate Zenodo publication with DOI 10.5281/zenodo.21937842.",
   "creators": [
     {
       "name": "Matos, Marcelo Roldão",
@@ -17,6 +17,8 @@
     "persistent storage",
     "write-ahead log",
     "crash recovery",
+    "C ABI",
+    "Python bindings",
     "adaptive partitioning",
     "benchmarking",
     "reproducible research"
@@ -28,5 +30,5 @@
       "resource_type": "publication-preprint"
     }
   ],
-  "notes": "SOFTWARE LICENSE: BDR Academic and Non-Commercial Research License v1.0 (see repository LICENSE). Academic, educational and non-commercial research use is permitted under its terms. Commercial use requires a separate written license from ETBRA Tecnologias. No patent license is granted. The CC BY-NC-SA 4.0 license applies only to the separate scientific preprint DOI 10.5281/zenodo.21937842 and does not apply to this software release. This software is source-available and is not represented as OSI-approved open source."
+  "notes": "SOFTWARE LICENSE: BDR Academic and Non-Commercial Research License v1.0 (see repository LICENSE). Academic, educational and non-commercial research use is permitted under its terms. Commercial use, production deployment, proprietary integration, SaaS and monetized use require a separate written commercial license from ETBRA Tecnologias. No patent license is granted. The CC BY-NC-SA 4.0 license applies only to the separate scientific preprint DOI 10.5281/zenodo.21937842 and does not apply to this software release. This software is source-available and is not represented as OSI-approved open source."
 }
