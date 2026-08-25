@@ -1,0 +1,55 @@
+name: V0.3 Concurrency and Crash Gates
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  concurrency:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Build concurrency gate
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/v03_scale/concurrency_gate.cpp \
+            experimental/api_v86/src/database.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -o v03_concurrency_gate
+      - name: Run concurrency gate
+        run: |
+          /usr/bin/time -v ./v03_concurrency_gate 2>&1 | tee v03_concurrency.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v03-concurrency-evidence
+          path: v03_concurrency.log
+
+  crash-recovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Build crash gate
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/v03_scale/crash_recovery_gate.cpp \
+            experimental/api_v86/src/database.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -o v03_crash_gate
+      - name: Run repeated SIGKILL recovery gate
+        run: |
+          /usr/bin/time -v ./v03_crash_gate 2>&1 | tee v03_crash.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v03-crash-evidence
+          path: v03_crash.log
