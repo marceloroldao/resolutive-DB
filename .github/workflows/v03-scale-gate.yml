@@ -8,7 +8,7 @@ on:
       ops:
         description: "Mutation count"
         required: false
-        default: "5000000"
+        default: "10000000"
 
 jobs:
   scale-gate:
@@ -28,7 +28,7 @@ jobs:
             -lz -o v03_scale_gate
       - name: Run scale gate
         env:
-          BDR_SCALE_OPS: ${{ github.event.inputs.ops || '5000000' }}
+          BDR_SCALE_OPS: ${{ github.event.inputs.ops || '10000000' }}
           BDR_SCALE_CYCLE_OPS: "10000"
           BDR_SCALE_KEY_SPACE: "100000"
           BDR_SCALE_CHECKPOINT_EVERY_CYCLES: "10"
