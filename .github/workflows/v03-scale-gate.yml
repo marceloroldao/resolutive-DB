@@ -1,0 +1,42 @@
+name: V0.3 Scale Gate
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      ops:
+        description: "Mutation count"
+        required: false
+        default: "1000000"
+
+jobs:
+  scale-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Build scale gate
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/v03_scale/scale_gate.cpp \
+            experimental/api_v86/src/database.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -o v03_scale_gate
+      - name: Run scale gate
+        env:
+          BDR_SCALE_OPS: ${{ github.event.inputs.ops || '1000000' }}
+          BDR_SCALE_CYCLE_OPS: "10000"
+          BDR_SCALE_KEY_SPACE: "100000"
+          BDR_SCALE_CHECKPOINT_EVERY_CYCLES: "10"
+        run: |
+          /usr/bin/time -v ./v03_scale_gate 2>&1 | tee v03_scale_gate.log
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v03-scale-gate-evidence
+          path: v03_scale_gate.log
