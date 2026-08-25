@@ -1,0 +1,38 @@
+name: V0.3 Cardinality Growth Gate
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  cardinality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        records: [100000, 1000000, 5000000]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Build cardinality gate
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/v03_scale/cardinality_gate.cpp \
+            experimental/api_v86/src/database.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -o v03_cardinality_gate
+      - name: Run cardinality gate
+        env:
+          BDR_CARDINALITY: ${{ matrix.records }}
+        run: |
+          /usr/bin/time -v ./v03_cardinality_gate 2>&1 | tee v03_cardinality_${{ matrix.records }}.log
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v03-cardinality-${{ matrix.records }}
+          path: v03_cardinality_${{ matrix.records }}.log
