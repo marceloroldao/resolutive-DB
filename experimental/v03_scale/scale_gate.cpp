@@ -32,7 +32,7 @@ int main() {
 
     std::unordered_map<std::string, std::string> oracle;
     oracle.reserve(key_space);
-    std::mt19937_64 rng(0xBDR0301ULL);
+    std::mt19937_64 rng(0xBD0301ULL);
 
     std::size_t done = 0;
     std::size_t cycle = 0;
