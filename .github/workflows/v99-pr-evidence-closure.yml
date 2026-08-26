@@ -95,7 +95,7 @@ jobs:
 
       - name: Run readiness audit V95
         run: |
-          bash experimental/api_v95/audit.sh
+          python3 experimental/api_v95/release_readiness.py
           mkdir -p v99_out/v95
           cp -r experimental/api_v95/out/. v99_out/v95/
 
@@ -126,7 +126,10 @@ jobs:
           v95 = json.loads((root/'experimental/api_v95/out/manifest.json').read_text())
           v97 = json.loads((root/'experimental/api_v97/metadata_audit.json').read_text())
           v98 = json.loads((root/'experimental/api_v98/staging_audit.json').read_text())
-          candidate = bool(v95.get('candidate')) and all(v == 'PASS' for v in v97.values()) and all(v == 'PASS' for v in v98.values())
+          v95_ok = bool(v95.get('candidate'))
+          v97_ok = bool(v97.get('release_metadata_ready')) and not v97.get('errors')
+          v98_ok = bool(v98.get('staging_safe')) and not v98.get('errors')
+          candidate = v95_ok and v97_ok and v98_ok
           manifest = {
               'schema': 1,
               'commit': subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip(),
@@ -137,8 +140,9 @@ jobs:
               'python_wheel': 'PASS',
               'python_benchmark_completed': 'PASS',
               'native_market_benchmark_completed': 'PASS',
-              'metadata_audit': 'PASS',
-              'staging_audit': 'PASS',
+              'readiness_audit': 'PASS' if v95_ok else 'FAIL',
+              'metadata_audit': 'PASS' if v97_ok else 'FAIL',
+              'staging_audit': 'PASS' if v98_ok else 'FAIL',
               'hashes': hashes,
           }
           out = root/'v99_out/final_manifest.json'
