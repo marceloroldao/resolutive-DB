@@ -1,0 +1,60 @@
+name: V0.3 WAL Batching Profile
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  wal-profile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [baseline, compact]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev strace
+
+      - name: Build baseline profiler
+        if: matrix.backend == 'baseline'
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/v03_scale/database_backend_phase.cpp \
+            experimental/api_v86/src/database.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -o v03_wal_profile
+
+      - name: Build compact profiler
+        if: matrix.backend == 'compact'
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            -Iexperimental/v03_scale \
+            experimental/v03_scale/database_backend_phase.cpp \
+            experimental/v03_scale/compact_database_shim.cpp \
+            -lz -o v03_wal_profile
+
+      - name: Profile WAL syscalls
+        env:
+          BDR_BACKEND_LABEL: ${{ matrix.backend }}
+          BDR_PHASE_RECORDS: 200000
+        run: |
+          strace -f -c -e trace=fdatasync,pwrite64 ./v03_wal_profile insert \
+            > wal_profile_${{ matrix.backend }}.out \
+            2> wal_profile_${{ matrix.backend }}.strace
+          cat wal_profile_${{ matrix.backend }}.out
+          cat wal_profile_${{ matrix.backend }}.strace
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: wal-profile-${{ matrix.backend }}
+          path: |
+            wal_profile_${{ matrix.backend }}.out
+            wal_profile_${{ matrix.backend }}.strace
+          if-no-files-found: error
