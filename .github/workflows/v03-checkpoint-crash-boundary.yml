@@ -1,0 +1,50 @@
+name: V0.3 Checkpoint Crash Boundary
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  checkpoint-crash-boundary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [baseline, compact]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+
+      - name: Generate streaming database translation unit
+        run: python3 experimental/v03_scale/generate_streaming_database.py
+
+      - name: Build checkpoint crash-boundary gate
+        run: |
+          EXTRA=""
+          INDEX_SRC="experimental/api_v86/src/resolutive_index.cpp"
+          if [ "${{ matrix.backend }}" = "compact" ]; then
+            EXTRA="-DBDR_EXPERIMENTAL_COMPACT_INDEX"
+            INDEX_SRC=""
+          fi
+          g++ -std=c++17 -O2 -pthread $EXTRA \
+            -Iexperimental/api_v86/include \
+            -Iexperimental/v03_scale \
+            experimental/v03_scale/checkpoint_crash_boundary_gate.cpp \
+            experimental/v03_scale/database_streaming_selectable.cpp \
+            $INDEX_SRC -lz -o checkpoint_crash_boundary
+
+      - name: Run checkpoint crash-boundary gate
+        env:
+          BDR_BACKEND_LABEL: ${{ matrix.backend }}
+        run: ./checkpoint_crash_boundary | tee checkpoint_crash_boundary_${{ matrix.backend }}.log
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkpoint-crash-boundary-${{ matrix.backend }}
+          path: checkpoint_crash_boundary_${{ matrix.backend }}.log
+          if-no-files-found: error
