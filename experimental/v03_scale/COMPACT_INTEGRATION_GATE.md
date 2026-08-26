@@ -4,18 +4,25 @@ Status: internal validation only. No publication, release candidate, DOI, or pub
 
 ## Purpose
 
-The compact-index prototype has shown materially lower resident memory in controlled ablations and has passed heavy-update churn with exact sampled-value verification. It must not replace `ResolutiveIndex` in the database core until it demonstrates full behavioral and persistence parity.
+The compact-index candidate reduces resident memory while preserving the existing database contract. It must remain experimental until the combined backend + persistence + crash + checkpoint path is reproducibly green.
 
 ## Current evidence
 
-- 1,000,000 records / 16-byte values: compact prototype materially reduced peak RSS versus the baseline index in CI.
-- 100,000 records + 5,000,000 updates: compact GC path completed successfully.
-- exact expected values are now verified on deterministic samples after churn.
-- high-cardinality baseline remains memory-bound: 5,000,000 distinct records reached roughly 3 GiB peak RSS in CI.
+- contract parity against `ResolutiveIndex` plus external oracle: PASS;
+- binary keys/values, overwrite, delete/reinsert, statistics and canonical snapshot parity: PASS;
+- 100,000 records + 5,000,000 updates with exact sampled final-value verification: PASS;
+- BDR3 snapshot + BDW3 WAL replay parity, torn-final-WAL handling and CRC rejection: PASS;
+- real `Database` lifecycle through compact backend shim: PASS;
+- crash recovery: PASS across 50 kill/recovery rounds;
+- concurrency: PASS for 1 / 4 / 8 / 16 writers;
+- compile-time backend selector: baseline PASS and compact PASS, with baseline remaining the default path;
+- paired same-runner 1M median: compact 684,899 ops/s vs baseline 682,411 ops/s; compact RSS 231,244 KB vs baseline 299,632 KB (-22.8%);
+- paired same-runner 5M median: compact 667,267 ops/s vs baseline 656,275 ops/s; compact RSS 970,876 KB vs baseline 1,325,728 KB (-26.8%);
+- compact memory advantage increases with cardinality through 5M while ingest throughput remains at least equivalent.
 
 ## Mandatory contract parity
 
-The compact implementation must provide and pass equivalent semantics for every index operation used by `Database`:
+The compact implementation must provide and preserve equivalent semantics for every index operation used by `Database`:
 
 - `put(key, value)`
 - `get(key)`
@@ -25,7 +32,7 @@ The compact implementation must provide and pass equivalent semantics for every 
 - `stats()`
 - `snapshot_items()`
 
-No core integration is allowed while any of these operations is missing or only partially validated.
+These contract gates are currently green and remain mandatory regression checks.
 
 ## Mandatory correctness gates
 
@@ -40,7 +47,7 @@ No core integration is allowed while any of these operations is missing or only 
 
 ## Mandatory persistence gates
 
-The database currently replays BDR3 snapshots and BDW3 WAL records directly into `ResolutiveIndex`. A compact candidate must therefore pass the same end-to-end lifecycle:
+The compact candidate must preserve the same end-to-end lifecycle:
 
 1. create database;
 2. insert/update/delete workload;
@@ -53,26 +60,40 @@ The database currently replays BDR3 snapshots and BDW3 WAL records directly into
 9. repeat after crash during active writes;
 10. verify sequence/durability invariants remain unchanged.
 
+These gates are green for the compact backend and remain mandatory regressions.
+
+## Checkpoint memory finding
+
+The current checkpoint path independently inflates RSS because it materializes both `snapshot_items()` and a second complete encoded BDR3 byte vector.
+
+A streaming BDR3 encoder that preserves the current sorted snapshot order has been validated at 1M records:
+
+- output size: 53,777,808 bytes for both buffered and streaming variants;
+- byte-for-byte equality: PASS (`cmp`);
+- SHA-256 for both: `890cc814527e6879e0f0594f72a355d237c7afc95d82001a6d2e7fe4c4d629e7`;
+- buffered RSS: 380,224 KB;
+- streaming RSS: 324,644 KB (~14.6% lower);
+- streaming carries a small runtime cost and therefore remains experimental.
+
+The next gate is the combined real-Database path: baseline/compact backend × streaming checkpoint, preserving BDR3 atomicity, crash recovery and concurrency.
+
 ## Resource gates
 
-A compact implementation is useful only if the end-to-end database retains a meaningful advantage after persistence and recovery overhead are included.
-
-Measure at minimum:
+Continue measuring:
 
 - peak RSS at 100k / 1M / 5M distinct records;
-- bytes per record in memory;
-- insert throughput;
-- lookup throughput;
-- overwrite throughput;
-- delete/reinsert throughput;
-- checkpoint latency;
-- reopen/recovery latency;
-- arena live bytes;
-- garbage bytes;
-- compaction count and compaction CPU cost.
+- insert and lookup throughput;
+- overwrite and delete/reinsert throughput;
+- checkpoint latency and RSS;
+- reopen/recovery latency and RSS;
+- disk footprint;
+- arena live/garbage bytes;
+- compaction count and CPU cost.
 
 ## Promotion rule
 
-The compact index may enter an experimental database integration only after full contract parity is green. It may replace the baseline index only when end-to-end correctness, crash recovery, concurrency, and resource gates are all green with reproducible evidence.
+The compact backend may continue in controlled experimental integration because contract, persistence, crash, concurrency and paired high-cardinality resource evidence are green through 5M records.
+
+It must not become the default backend until the combined compact + streaming path and later v1 readiness gates remain reproducibly green. The current baseline remains the default throughout pre-v1 development.
 
 The target milestone is technical readiness for **v1.0**, not an intermediate v0.3 publication.
