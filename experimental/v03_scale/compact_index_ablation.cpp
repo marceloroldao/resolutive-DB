@@ -47,7 +47,7 @@ class CompactIndex {
             ++compactions;
         }
         void maybe_compact(){
-            if(reclaim && garbage_bytes>=65536 && garbage_bytes*2>=arena.size()) compact_arena();
+            if(reclaim && garbage_bytes>=8192 && garbage_bytes*2>=arena.size()) compact_arena();
         }
         bool ins(std::uint64_t fp,const std::string&k,const std::string&v){
             std::size_t mask=slots.size()-1,idx=start(fp,mask);Slot cur=make(fp,k,v);
