@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [baseline, compact]
+        mode: [baseline, compact, compact_gc]
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
