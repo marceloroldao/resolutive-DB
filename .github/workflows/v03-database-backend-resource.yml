@@ -1,0 +1,55 @@
+name: V0.3 Database Backend Resource
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  backend-resource:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [baseline, compact]
+        records: [100000, 1000000]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+
+      - name: Build baseline benchmark
+        if: matrix.backend == 'baseline'
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/v03_scale/database_backend_resource.cpp \
+            experimental/api_v86/src/database.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -o v03_backend_resource
+
+      - name: Build compact benchmark
+        if: matrix.backend == 'compact'
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            -Iexperimental/v03_scale \
+            experimental/v03_scale/database_backend_resource.cpp \
+            experimental/v03_scale/compact_database_shim.cpp \
+            -lz -o v03_backend_resource
+
+      - name: Run backend benchmark
+        env:
+          BDR_BACKEND_LABEL: ${{ matrix.backend }}
+          BDR_RESOURCE_RECORDS: ${{ matrix.records }}
+        run: |
+          /usr/bin/time -v ./v03_backend_resource 2>&1 | tee resource_${{ matrix.backend }}_${{ matrix.records }}.log
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: resource-${{ matrix.backend }}-${{ matrix.records }}
+          path: resource_${{ matrix.backend }}_${{ matrix.records }}.log
+          if-no-files-found: error
