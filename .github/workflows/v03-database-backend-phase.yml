@@ -1,0 +1,74 @@
+name: V0.3 Database Backend Phase
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  backend-phase:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [baseline, compact]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+
+      - name: Build baseline phase benchmark
+        if: matrix.backend == 'baseline'
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/v03_scale/database_backend_phase.cpp \
+            experimental/api_v86/src/database.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -o v03_backend_phase
+
+      - name: Build compact phase benchmark
+        if: matrix.backend == 'compact'
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            -Iexperimental/v03_scale \
+            experimental/v03_scale/database_backend_phase.cpp \
+            experimental/v03_scale/compact_database_shim.cpp \
+            -lz -o v03_backend_phase
+
+      - name: Measure insert without checkpoint
+        env:
+          BDR_BACKEND_LABEL: ${{ matrix.backend }}
+          BDR_PHASE_RECORDS: 1000000
+        run: |
+          /usr/bin/time -v ./v03_backend_phase insert 2>&1 | tee phase_insert_${{ matrix.backend }}.log
+
+      - name: Prepare snapshot outside measured phases
+        env:
+          BDR_BACKEND_LABEL: ${{ matrix.backend }}
+          BDR_PHASE_RECORDS: 1000000
+        run: ./v03_backend_phase prepare > phase_prepare_${{ matrix.backend }}.log
+
+      - name: Measure reopen only
+        env:
+          BDR_BACKEND_LABEL: ${{ matrix.backend }}
+          BDR_PHASE_RECORDS: 1000000
+        run: |
+          /usr/bin/time -v ./v03_backend_phase reopen 2>&1 | tee phase_reopen_${{ matrix.backend }}.log
+
+      - name: Measure checkpoint after reopen
+        env:
+          BDR_BACKEND_LABEL: ${{ matrix.backend }}
+          BDR_PHASE_RECORDS: 1000000
+        run: |
+          /usr/bin/time -v ./v03_backend_phase checkpoint 2>&1 | tee phase_checkpoint_${{ matrix.backend }}.log
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-${{ matrix.backend }}
+          path: phase_*_${{ matrix.backend }}.log
+          if-no-files-found: error
