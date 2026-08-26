@@ -1,0 +1,88 @@
+name: V0.3 Database Backend Paired 5M
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  paired-backend-5m:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+
+      - name: Build baseline and compact executables
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/v03_scale/database_backend_phase.cpp \
+            experimental/api_v86/src/database.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -o v03_backend_baseline
+
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            -Iexperimental/v03_scale \
+            experimental/v03_scale/database_backend_phase.cpp \
+            experimental/v03_scale/compact_database_shim.cpp \
+            -lz -o v03_backend_compact
+
+      - name: Run paired 5M insert benchmark
+        env:
+          BDR_PHASE_RECORDS: 5000000
+        run: |
+          rm -f paired_5m_insert.log paired_5m_time.log
+          run_one() {
+            backend="$1"
+            rep="$2"
+            export BDR_BACKEND_LABEL="${backend}-5m"
+            /usr/bin/time -f "TIME backend=${backend} rep=${rep} rss_kb=%M elapsed=%e user=%U sys=%S" \
+              -a -o paired_5m_time.log \
+              ./v03_backend_${backend} insert | tee -a paired_5m_insert.log
+          }
+          run_one baseline 1
+          run_one compact 1
+          run_one compact 2
+          run_one baseline 2
+          run_one baseline 3
+          run_one compact 3
+          cat paired_5m_insert.log
+          cat paired_5m_time.log
+
+      - name: Summarize paired 5M medians
+        run: |
+          python3 - <<'PY'
+          import re, statistics
+          text=open('paired_5m_insert.log').read().splitlines()
+          times=open('paired_5m_time.log').read().splitlines()
+          rows={'baseline':[], 'compact':[]}
+          rss={'baseline':[], 'compact':[]}
+          for line in text:
+              m=re.search(r'backend=(baseline|compact)-5m.*seconds=([0-9.]+).*ops_per_sec=([0-9.]+)', line)
+              if m: rows[m.group(1)].append((float(m.group(2)),float(m.group(3))))
+          for line in times:
+              m=re.search(r'backend=(baseline|compact).*rss_kb=(\d+)', line)
+              if m: rss[m.group(1)].append(int(m.group(2)))
+          if any(len(rows[k])!=3 or len(rss[k])!=3 for k in rows):
+              raise SystemExit(f'incomplete paired evidence rows={rows} rss={rss}')
+          print('backend,median_seconds,median_ops_per_sec,median_rss_kb')
+          for k in ('baseline','compact'):
+              print(f"{k},{statistics.median(x[0] for x in rows[k]):.6f},{statistics.median(x[1] for x in rows[k]):.3f},{statistics.median(rss[k]):.0f}")
+          speed=statistics.median(x[1] for x in rows['compact'])/statistics.median(x[1] for x in rows['baseline'])
+          mem=statistics.median(rss['compact'])/statistics.median(rss['baseline'])
+          print(f'compact_to_baseline_throughput={speed:.6f}')
+          print(f'compact_to_baseline_rss={mem:.6f}')
+          PY
+
+      - name: Upload paired 5M evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v03-database-backend-paired-5m
+          path: |
+            paired_5m_insert.log
+            paired_5m_time.log
+          if-no-files-found: error
