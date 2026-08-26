@@ -1,0 +1,35 @@
+name: V0.3 Compact Persistence Parity
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  compact-persistence-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+
+      - name: Build compact persistence parity gate
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/v03_scale/compact_persistence_parity.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -o v03_compact_persistence_parity
+
+      - name: Run compact persistence parity gate
+        run: |
+          /usr/bin/time -v ./v03_compact_persistence_parity 2>&1 | tee v03_compact_persistence_parity.log
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v03-compact-persistence-parity
+          path: v03_compact_persistence_parity.log
+          if-no-files-found: error
