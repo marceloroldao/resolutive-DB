@@ -1,0 +1,38 @@
+name: V0.3 Memory Ablation
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  memory-ablation:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        value_bytes: [0, 16, 128, 1024]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Build ablation
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/v03_scale/memory_ablation.cpp \
+            experimental/api_v86/src/database.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -o v03_memory_ablation
+      - name: Run ablation
+        env:
+          BDR_ABLATION_RECORDS: "1000000"
+          BDR_ABLATION_VALUE_BYTES: ${{ matrix.value_bytes }}
+        run: |
+          /usr/bin/time -v ./v03_memory_ablation 2>&1 | tee v03_memory_ablation_${{ matrix.value_bytes }}.log
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v03-memory-ablation-${{ matrix.value_bytes }}
+          path: v03_memory_ablation_${{ matrix.value_bytes }}.log
