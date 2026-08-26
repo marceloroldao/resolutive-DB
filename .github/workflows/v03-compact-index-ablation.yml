@@ -1,0 +1,39 @@
+name: V0.3 Compact Index Ablation
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  compact-index:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [baseline, compact]
+        value_bytes: [0, 16, 128]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Build ablation
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/v03_scale/compact_index_ablation.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -o v03_compact_index
+      - name: Run ablation
+        env:
+          BDR_COMPACT_MODE: ${{ matrix.mode }}
+          BDR_COMPACT_RECORDS: "1000000"
+          BDR_COMPACT_VALUE_BYTES: ${{ matrix.value_bytes }}
+        run: |
+          /usr/bin/time -v ./v03_compact_index 2>&1 | tee compact_${{ matrix.mode }}_${{ matrix.value_bytes }}.log
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v03-compact-${{ matrix.mode }}-${{ matrix.value_bytes }}
+          path: compact_${{ matrix.mode }}_${{ matrix.value_bytes }}.log
