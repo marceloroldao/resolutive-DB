@@ -1,0 +1,72 @@
+name: V0.3 Database Backend Selector
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  selector:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [baseline, compact]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+
+      - name: Build selector crash gate
+        run: |
+          EXTRA=""
+          if [ "${{ matrix.backend }}" = "compact" ]; then EXTRA="-DBDR_EXPERIMENTAL_COMPACT_INDEX"; fi
+          g++ -std=c++17 -O2 -pthread $EXTRA \
+            -Iexperimental/api_v86/include \
+            -Iexperimental/v03_scale \
+            experimental/v03_scale/crash_recovery_gate.cpp \
+            experimental/v03_scale/database_backend_selectable.cpp \
+            -lz -o selector_crash
+
+      - name: Run selector crash gate
+        run: ./selector_crash | tee selector_crash_${{ matrix.backend }}.log
+
+      - name: Build selector concurrency gate
+        run: |
+          EXTRA=""
+          if [ "${{ matrix.backend }}" = "compact" ]; then EXTRA="-DBDR_EXPERIMENTAL_COMPACT_INDEX"; fi
+          g++ -std=c++17 -O2 -pthread $EXTRA \
+            -Iexperimental/api_v86/include \
+            -Iexperimental/v03_scale \
+            experimental/v03_scale/concurrency_gate.cpp \
+            experimental/v03_scale/database_backend_selectable.cpp \
+            -lz -o selector_concurrency
+
+      - name: Run selector concurrency gate
+        run: ./selector_concurrency | tee selector_concurrency_${{ matrix.backend }}.log
+
+      - name: Build selector resource smoke
+        run: |
+          EXTRA=""
+          if [ "${{ matrix.backend }}" = "compact" ]; then EXTRA="-DBDR_EXPERIMENTAL_COMPACT_INDEX"; fi
+          g++ -std=c++17 -O2 -pthread $EXTRA \
+            -Iexperimental/api_v86/include \
+            -Iexperimental/v03_scale \
+            experimental/v03_scale/database_backend_phase.cpp \
+            experimental/v03_scale/database_backend_selectable.cpp \
+            -lz -o selector_resource
+
+      - name: Run selector resource smoke
+        env:
+          BDR_BACKEND_LABEL: selector-${{ matrix.backend }}
+          BDR_PHASE_RECORDS: 200000
+        run: /usr/bin/time -v ./selector_resource insert 2>&1 | tee selector_resource_${{ matrix.backend }}.log
+
+      - name: Upload selector evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: selector-${{ matrix.backend }}
+          path: selector_*_${{ matrix.backend }}.log
+          if-no-files-found: error
