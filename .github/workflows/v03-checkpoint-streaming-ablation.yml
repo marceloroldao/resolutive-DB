@@ -1,0 +1,46 @@
+name: V0.3 Checkpoint Streaming Ablation
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  checkpoint-streaming:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+
+      - name: Build checkpoint ablation
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/v03_scale/checkpoint_streaming_ablation.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -o checkpoint_streaming_ablation
+
+      - name: Measure buffered and streaming checkpoint
+        env:
+          BDR_STREAM_RECORDS: 1000000
+        run: |
+          rm -f checkpoint_times.log
+          /usr/bin/time -f "TIME mode=buffered rss_kb=%M elapsed=%e user=%U sys=%S" -a -o checkpoint_times.log ./checkpoint_streaming_ablation buffered | tee checkpoint_buffered.log
+          /usr/bin/time -f "TIME mode=streaming rss_kb=%M elapsed=%e user=%U sys=%S" -a -o checkpoint_times.log ./checkpoint_streaming_ablation streaming | tee checkpoint_streaming.log
+          cmp checkpoint_buffered.bdr3 checkpoint_streaming.bdr3
+          sha256sum checkpoint_buffered.bdr3 checkpoint_streaming.bdr3 | tee checkpoint_sha256.log
+          cat checkpoint_times.log
+
+      - name: Upload checkpoint evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v03-checkpoint-streaming-ablation
+          path: |
+            checkpoint_buffered.log
+            checkpoint_streaming.log
+            checkpoint_times.log
+            checkpoint_sha256.log
+          if-no-files-found: error
