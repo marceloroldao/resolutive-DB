@@ -1,0 +1,40 @@
+name: V0.3 Compact Index Churn
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  churn:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [baseline, compact]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Build churn ablation
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/v03_scale/compact_index_ablation.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -o v03_compact_index
+      - name: Run churn
+        env:
+          BDR_COMPACT_MODE: ${{ matrix.mode }}
+          BDR_COMPACT_RECORDS: "100000"
+          BDR_COMPACT_VALUE_BYTES: "16"
+          BDR_COMPACT_UPDATES: "5000000"
+        run: |
+          /usr/bin/time -v ./v03_compact_index 2>&1 | tee compact_churn_${{ matrix.mode }}.log
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v03-compact-churn-${{ matrix.mode }}
+          path: compact_churn_${{ matrix.mode }}.log
