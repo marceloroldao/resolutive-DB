@@ -1,0 +1,26 @@
+name: V0.3 Compact Reclaim Gate
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  reclaim-churn:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build reclaim prototype
+        run: g++ -std=c++17 -O2 -pthread experimental/v03_scale/compact_index_reclaim.cpp -o v03_reclaim
+      - name: Run 5M-update churn
+        env:
+          BDR_RECLAIM_RECORDS: "100000"
+          BDR_RECLAIM_UPDATES: "5000000"
+        run: /usr/bin/time -v ./v03_reclaim 2>&1 | tee v03_reclaim.log
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v03-compact-reclaim-evidence
+          path: v03_reclaim.log
