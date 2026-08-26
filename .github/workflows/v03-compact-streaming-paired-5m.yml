@@ -1,0 +1,94 @@
+name: V0.3 Compact Streaming Paired 5M
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  paired-streaming-5m:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+
+      - name: Generate streaming database translation unit
+        run: python3 experimental/v03_scale/generate_streaming_database.py
+
+      - name: Build baseline and compact streaming executables
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            -Iexperimental/v03_scale \
+            experimental/v03_scale/database_backend_resource.cpp \
+            experimental/v03_scale/database_streaming_selectable.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -o streaming_baseline
+
+          g++ -std=c++17 -O2 -pthread -DBDR_EXPERIMENTAL_COMPACT_INDEX \
+            -Iexperimental/api_v86/include \
+            -Iexperimental/v03_scale \
+            experimental/v03_scale/database_backend_resource.cpp \
+            experimental/v03_scale/database_streaming_selectable.cpp \
+            -lz -o streaming_compact
+
+      - name: Run paired 5M streaming lifecycle
+        env:
+          BDR_RESOURCE_RECORDS: 5000000
+        run: |
+          rm -f paired_streaming_5m.log paired_streaming_5m_time.log
+          run_one() {
+            backend="$1"
+            rep="$2"
+            export BDR_BACKEND_LABEL="streaming-${backend}-5m-${rep}"
+            /usr/bin/time -f "TIME backend=${backend} rep=${rep} rss_kb=%M elapsed=%e user=%U sys=%S" \
+              -a -o paired_streaming_5m_time.log \
+              ./streaming_${backend} | tee -a paired_streaming_5m.log
+          }
+          run_one baseline 1
+          run_one compact 1
+          run_one compact 2
+          run_one baseline 2
+          run_one baseline 3
+          run_one compact 3
+          cat paired_streaming_5m.log
+          cat paired_streaming_5m_time.log
+
+      - name: Summarize paired streaming medians
+        run: |
+          python3 - <<'PY'
+          import re, statistics
+          rows={'baseline':[], 'compact':[]}
+          rss={'baseline':[], 'compact':[]}
+          for line in open('paired_streaming_5m.log'):
+              m=re.search(r'backend=streaming-(baseline|compact)-5m-\d+.*insert_seconds=([0-9.eE+-]+).*insert_ops_per_sec=([0-9.eE+-]+).*checkpoint_seconds=([0-9.eE+-]+).*reopen_seconds=([0-9.eE+-]+).*lookup_ops_per_sec=([0-9.eE+-]+).*disk_bytes=(\d+)', line)
+              if m:
+                  rows[m.group(1)].append(tuple(map(float,m.groups()[1:6])) + (int(m.group(7)),))
+          for line in open('paired_streaming_5m_time.log'):
+              m=re.search(r'backend=(baseline|compact).*rss_kb=(\d+)', line)
+              if m: rss[m.group(1)].append(int(m.group(2)))
+          if any(len(rows[k])!=3 or len(rss[k])!=3 for k in rows):
+              raise SystemExit(f'incomplete evidence rows={rows} rss={rss}')
+          print('backend,insert_s,insert_ops,checkpoint_s,reopen_s,lookup_ops,disk_bytes,rss_kb')
+          med={}
+          for k in ('baseline','compact'):
+              cols=list(zip(*rows[k]))
+              med[k]=[statistics.median(c) for c in cols]
+              print(f"{k},{med[k][0]:.6f},{med[k][1]:.3f},{med[k][2]:.6f},{med[k][3]:.6f},{med[k][4]:.3f},{med[k][5]:.0f},{statistics.median(rss[k]):.0f}")
+          print(f"compact_to_baseline_insert_throughput={med['compact'][1]/med['baseline'][1]:.6f}")
+          print(f"compact_to_baseline_checkpoint_time={med['compact'][2]/med['baseline'][2]:.6f}")
+          print(f"compact_to_baseline_reopen_time={med['compact'][3]/med['baseline'][3]:.6f}")
+          print(f"compact_to_baseline_rss={statistics.median(rss['compact'])/statistics.median(rss['baseline']):.6f}")
+          PY
+
+      - name: Upload paired streaming evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v03-compact-streaming-paired-5m
+          path: |
+            paired_streaming_5m.log
+            paired_streaming_5m_time.log
+          if-no-files-found: error
