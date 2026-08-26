@@ -7,6 +7,7 @@ root = Path(__file__).resolve().parents[2]
 staging = root / 'experimental/api_v98'
 
 errors = []
+notes = []
 
 def require_text(path, needle):
     p = root / path
@@ -17,13 +18,22 @@ def require_text(path, needle):
     if needle not in text:
         errors.append(f'{path}: missing {needle!r}')
 
+# Keep the original pre-publication staging record immutable as historical evidence.
 require_text('experimental/api_v98/RC_STAGING.md', 'NOT RELEASED / NOT TAGGED / NOT PUBLISHED')
 require_text('experimental/api_v98/RELEASE_NOTES_v0.2.0-rc1_DRAFT.md', 'Draft only. Not released.')
+notes.append('Pre-publication V98 staging documents are retained as historical evidence and are not statements of current release status.')
+
+# Licensing invariants remain unchanged.
 require_text('LICENSE', 'BDR ACADEMIC AND NON-COMMERCIAL RESEARCH LICENSE v1.0')
 require_text('LICENSE', 'Commercial Use Prohibited Without Separate License')
 require_text('LICENSE', 'No Patent License')
-require_text('CITATION.cff', 'version: "0.1.0"')
-require_text('CITATION.cff', '10.5281/zenodo.21938148')
+
+# Current software citation must point to the published v0.2.0-rc1 baseline.
+require_text('CITATION.cff', 'version: "0.2.0-rc1"')
+require_text('CITATION.cff', 'date-released: 2026-08-24')
+require_text('CITATION.cff', '10.5281/zenodo.22074886')
+require_text('CITATION.cff', 'releases/tag/0.2.0-rc1')
+# Associated scientific preprint remains separately citable.
 require_text('CITATION.cff', '10.5281/zenodo.21937842')
 
 manifest_path = root / 'v96_out/final_manifest.json'
@@ -38,11 +48,14 @@ else:
     candidate = False
 
 out = {
-    'schema': 1,
-    'proposed_version': '0.2.0-rc1',
+    'schema': 2,
+    'historical_staging_version': '0.2.0-rc1',
+    'published_software_baseline': '0.2.0-rc1',
     'candidate_evidence_present': manifest_path.exists(),
     'candidate': candidate,
+    'staging_history_preserved': True,
     'staging_safe': not errors,
+    'notes': notes,
     'errors': errors,
 }
 (staging / 'staging_audit.json').write_text(json.dumps(out, indent=2) + '\n')
