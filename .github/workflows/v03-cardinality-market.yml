@@ -1,0 +1,46 @@
+name: V0.3 Cardinality Market Benchmark
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  market:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: per_op
+            records: 20000
+          - mode: grouped
+            records: 1000000
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ zlib1g-dev libsqlite3-dev liblmdb-dev libleveldb-dev librocksdb-dev
+      - name: Build benchmark
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/v03_scale/cardinality_market_benchmark.cpp \
+            experimental/api_v86/src/database.cpp \
+            experimental/api_v86/src/resolutive_index.cpp \
+            -lz -lsqlite3 -llmdb -lleveldb -lrocksdb \
+            -o v03_cardinality_market
+      - name: Run benchmark
+        env:
+          BDR_MARKET_MODE: ${{ matrix.mode }}
+          BDR_MARKET_RECORDS: ${{ matrix.records }}
+        run: |
+          /usr/bin/time -v ./v03_cardinality_market 2>&1 | tee v03_market_${{ matrix.mode }}_${{ matrix.records }}.log
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v03-market-${{ matrix.mode }}-${{ matrix.records }}
+          path: v03_market_${{ matrix.mode }}_${{ matrix.records }}.log
