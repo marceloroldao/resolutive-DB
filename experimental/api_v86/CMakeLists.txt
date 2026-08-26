@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(ZLIB REQUIRED)
 find_package(Threads REQUIRED)
 
+# Preserved v0.2/v86 baseline target.
 add_library(bdr_v86 STATIC
     src/database.cpp
     src/resolutive_index.cpp
@@ -18,5 +19,30 @@ target_link_libraries(bdr_v86 PUBLIC ZLIB::ZLIB Threads::Threads)
 add_executable(v86_contract test_contract.cpp)
 target_link_libraries(v86_contract PRIVATE bdr_v86)
 
+# Internal v1 candidate: CompactIndex + streaming BDR3 checkpoint.
+# CompactIndex is header-only, so database_v1.cpp is the only implementation unit.
+add_library(bdr_v1_candidate STATIC
+    src/database_v1.cpp
+)
+target_include_directories(bdr_v1_candidate PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(bdr_v1_candidate PUBLIC ZLIB::ZLIB Threads::Threads)
+
+add_executable(v1_candidate_contract test_contract.cpp)
+target_link_libraries(v1_candidate_contract PRIVATE bdr_v1_candidate)
+
+# Internal regression fallback: legacy ResolutiveIndex + the same streaming persistence path.
+add_library(bdr_v1_fallback STATIC
+    src/database_v1.cpp
+    src/resolutive_index.cpp
+)
+target_compile_definitions(bdr_v1_fallback PRIVATE BDR_V1_FALLBACK_INDEX)
+target_include_directories(bdr_v1_fallback PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(bdr_v1_fallback PUBLIC ZLIB::ZLIB Threads::Threads)
+
+add_executable(v1_fallback_contract test_contract.cpp)
+target_link_libraries(v1_fallback_contract PRIVATE bdr_v1_fallback)
+
 enable_testing()
 add_test(NAME v86_contract COMMAND v86_contract)
+add_test(NAME v1_candidate_contract COMMAND v1_candidate_contract)
+add_test(NAME v1_fallback_contract COMMAND v1_fallback_contract)
