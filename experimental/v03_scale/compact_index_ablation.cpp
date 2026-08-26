@@ -30,6 +30,7 @@ class CompactIndex {
         void rehash(std::size_t n){auto old=std::move(slots);slots.assign(np2(n),Slot{});records=0;for(auto&s:old)if(s.used){std::size_t mask=slots.size()-1,idx=start(s.fp,mask);Slot cur=s;cur.dist=0;for(;;){auto&x=slots[idx];if(!x.used){x=cur;++records;break;}if(x.dist<cur.dist)std::swap(x,cur);idx=(idx+1)&mask;++cur.dist;}}}
         bool put(std::uint64_t fp,const std::string&k,const std::string&v,double ml){std::unique_lock lk(mu);if(double(records+1)/slots.size()>ml)rehash(slots.size()*2);return ins(fp,k,v);}        
         std::optional<std::string> get(std::uint64_t fp,const std::string&k)const{std::shared_lock lk(mu);std::size_t mask=slots.size()-1,idx=start(fp,mask);std::uint16_t d=0;for(;;){const auto&s=slots[idx];if(!s.used||s.dist<d)return std::nullopt;if(s.fp==fp&&key_view(s)==k)return value_copy(s);idx=(idx+1)&mask;if(++d>=slots.size())return std::nullopt;}}
+        std::size_t arena_bytes() const { std::shared_lock lk(mu); return arena.size(); }
     };
     std::vector<std::unique_ptr<Part>> p_; double ml_=.78; std::size_t n_=0;
 public:
@@ -37,19 +38,25 @@ public:
     void put(const std::string&k,const std::string&v){auto h1=mix64(fnv1a64(k));auto h2=mix64(fnv1a64(k,1099511628211ULL)^(h1<<1));if(p_[h1%p_.size()]->put(h2,k,v,ml_))++n_;}
     std::optional<std::string> get(const std::string&k)const{auto h1=mix64(fnv1a64(k));auto h2=mix64(fnv1a64(k,1099511628211ULL)^(h1<<1));return p_[h1%p_.size()]->get(h2,k);}    
     std::size_t size()const{return n_;}
+    std::size_t arena_bytes() const { std::size_t t=0; for(const auto& p:p_) t+=p->arena_bytes(); return t; }
 };
 
 int main(){
     const char* m=std::getenv("BDR_COMPACT_MODE");std::string mode=m?m:"baseline";
     const std::size_t n=std::strtoull(std::getenv("BDR_COMPACT_RECORDS")?std::getenv("BDR_COMPACT_RECORDS"):"1000000",nullptr,10);
     const std::size_t vb=std::strtoull(std::getenv("BDR_COMPACT_VALUE_BYTES")?std::getenv("BDR_COMPACT_VALUE_BYTES"):"16",nullptr,10);
+    const std::size_t updates=std::strtoull(std::getenv("BDR_COMPACT_UPDATES")?std::getenv("BDR_COMPACT_UPDATES"):"0",nullptr,10);
     std::string value(vb,'x');auto t0=Clock::now();
     if(mode=="baseline"){
-        bdr::ResolutiveIndex idx(4096,.78);for(std::size_t i=0;i<n;++i)idx.put("k"+std::to_string(i),value);for(std::size_t i=0;i<10000;++i){auto x=idx.get("k"+std::to_string((i*9973)%n));if(!x||*x!=value)throw std::runtime_error("baseline verify");}
-        std::cout<<"COMPACT_ABLATION PASS mode=baseline records="<<idx.size()<<" value_bytes="<<vb;
+        bdr::ResolutiveIndex idx(4096,.78);for(std::size_t i=0;i<n;++i)idx.put("k"+std::to_string(i),value);
+        for(std::size_t i=0;i<updates;++i){std::string v(vb,char('a'+(i%26)));idx.put("k"+std::to_string(i%n),v);}        
+        for(std::size_t i=0;i<10000;++i){auto x=idx.get("k"+std::to_string((i*9973)%n));if(!x)throw std::runtime_error("baseline verify");}
+        std::cout<<"COMPACT_ABLATION PASS mode=baseline records="<<idx.size()<<" value_bytes="<<vb<<" updates="<<updates;
     } else {
-        CompactIndex idx;for(std::size_t i=0;i<n;++i)idx.put("k"+std::to_string(i),value);for(std::size_t i=0;i<10000;++i){auto x=idx.get("k"+std::to_string((i*9973)%n));if(!x||*x!=value)throw std::runtime_error("compact verify");}
-        std::cout<<"COMPACT_ABLATION PASS mode=compact records="<<idx.size()<<" value_bytes="<<vb;
+        CompactIndex idx;for(std::size_t i=0;i<n;++i)idx.put("k"+std::to_string(i),value);
+        for(std::size_t i=0;i<updates;++i){std::string v(vb,char('a'+(i%26)));idx.put("k"+std::to_string(i%n),v);}        
+        for(std::size_t i=0;i<10000;++i){auto x=idx.get("k"+std::to_string((i*9973)%n));if(!x)throw std::runtime_error("compact verify");}
+        std::cout<<"COMPACT_ABLATION PASS mode=compact records="<<idx.size()<<" value_bytes="<<vb<<" updates="<<updates<<" arena_bytes="<<idx.arena_bytes();
     }
     auto t1=Clock::now();std::cout<<" seconds="<<std::chrono::duration<double>(t1-t0).count()<<"\n";
 }
