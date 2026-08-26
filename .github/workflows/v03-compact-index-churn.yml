@@ -38,3 +38,5 @@ jobs:
         with:
           name: v03-compact-churn-${{ matrix.mode }}
           path: compact_churn_${{ matrix.mode }}.log
+
+# Rerun marker: 8 KiB per-partition reclaim threshold validation.
