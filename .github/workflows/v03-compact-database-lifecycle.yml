@@ -1,0 +1,51 @@
+name: V0.3 Compact Database Lifecycle
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  compact-database-lifecycle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+
+      - name: Build compact crash recovery gate
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            -Iexperimental/v03_scale \
+            experimental/v03_scale/crash_recovery_gate.cpp \
+            experimental/v03_scale/compact_database_shim.cpp \
+            -lz -o v03_compact_crash
+
+      - name: Run compact crash recovery gate
+        run: |
+          /usr/bin/time -v ./v03_compact_crash 2>&1 | tee v03_compact_crash.log
+
+      - name: Build compact concurrency gate
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            -Iexperimental/v03_scale \
+            experimental/v03_scale/concurrency_gate.cpp \
+            experimental/v03_scale/compact_database_shim.cpp \
+            -lz -o v03_compact_concurrency
+
+      - name: Run compact concurrency gate
+        run: |
+          /usr/bin/time -v ./v03_compact_concurrency 2>&1 | tee v03_compact_concurrency.log
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v03-compact-database-lifecycle
+          path: |
+            v03_compact_crash.log
+            v03_compact_concurrency.log
+          if-no-files-found: error
