@@ -22,12 +22,17 @@ jobs:
       - name: Build selector crash gate
         run: |
           EXTRA=""
-          if [ "${{ matrix.backend }}" = "compact" ]; then EXTRA="-DBDR_EXPERIMENTAL_COMPACT_INDEX"; fi
+          INDEX_SRC="experimental/api_v86/src/resolutive_index.cpp"
+          if [ "${{ matrix.backend }}" = "compact" ]; then
+            EXTRA="-DBDR_EXPERIMENTAL_COMPACT_INDEX"
+            INDEX_SRC=""
+          fi
           g++ -std=c++17 -O2 -pthread $EXTRA \
             -Iexperimental/api_v86/include \
             -Iexperimental/v03_scale \
             experimental/v03_scale/crash_recovery_gate.cpp \
             experimental/v03_scale/database_backend_selectable.cpp \
+            $INDEX_SRC \
             -lz -o selector_crash
 
       - name: Run selector crash gate
@@ -36,12 +41,17 @@ jobs:
       - name: Build selector concurrency gate
         run: |
           EXTRA=""
-          if [ "${{ matrix.backend }}" = "compact" ]; then EXTRA="-DBDR_EXPERIMENTAL_COMPACT_INDEX"; fi
+          INDEX_SRC="experimental/api_v86/src/resolutive_index.cpp"
+          if [ "${{ matrix.backend }}" = "compact" ]; then
+            EXTRA="-DBDR_EXPERIMENTAL_COMPACT_INDEX"
+            INDEX_SRC=""
+          fi
           g++ -std=c++17 -O2 -pthread $EXTRA \
             -Iexperimental/api_v86/include \
             -Iexperimental/v03_scale \
             experimental/v03_scale/concurrency_gate.cpp \
             experimental/v03_scale/database_backend_selectable.cpp \
+            $INDEX_SRC \
             -lz -o selector_concurrency
 
       - name: Run selector concurrency gate
@@ -50,12 +60,17 @@ jobs:
       - name: Build selector resource smoke
         run: |
           EXTRA=""
-          if [ "${{ matrix.backend }}" = "compact" ]; then EXTRA="-DBDR_EXPERIMENTAL_COMPACT_INDEX"; fi
+          INDEX_SRC="experimental/api_v86/src/resolutive_index.cpp"
+          if [ "${{ matrix.backend }}" = "compact" ]; then
+            EXTRA="-DBDR_EXPERIMENTAL_COMPACT_INDEX"
+            INDEX_SRC=""
+          fi
           g++ -std=c++17 -O2 -pthread $EXTRA \
             -Iexperimental/api_v86/include \
             -Iexperimental/v03_scale \
             experimental/v03_scale/database_backend_phase.cpp \
             experimental/v03_scale/database_backend_selectable.cpp \
+            $INDEX_SRC \
             -lz -o selector_resource
 
       - name: Run selector resource smoke
