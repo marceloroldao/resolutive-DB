@@ -1,7 +1,7 @@
 #include "bdr/resolutive_index.hpp"
 
 #ifdef BDR_EXPERIMENTAL_COMPACT_INDEX
-#include "compact_candidate.hpp"
+#include "bdr/compact_index.hpp"
 #define ResolutiveIndex CompactIndex
 #endif
 
