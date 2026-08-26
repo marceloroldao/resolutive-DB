@@ -17,6 +17,12 @@ static inline std::uint64_t mix64(std::uint64_t x) noexcept { x+=0x9e3779b97f4a7
 static inline std::uint64_t fnv1a64(const std::string&s,std::uint64_t seed=1469598103934665603ULL) noexcept { std::uint64_t h=seed; for(unsigned char c:s){h^=c;h*=1099511628211ULL;} return h; }
 static std::size_t np2(std::size_t n){std::size_t p=8;while(p<n)p<<=1;return p;}
 
+static std::string expected_value(std::size_t key_index,std::size_t records,std::size_t value_bytes,std::size_t updates){
+    if(updates==0 || key_index>=updates) return std::string(value_bytes,'x');
+    const std::size_t last=key_index+((updates-1-key_index)/records)*records;
+    return std::string(value_bytes,char('a'+(last%26)));
+}
+
 class CompactIndex {
     struct Slot { std::uint64_t fp=0; std::uint32_t key_off=0,val_off=0; std::uint32_t key_len=0,val_len=0; std::uint16_t dist=0; std::uint8_t used=0; };
     struct Part {
@@ -87,14 +93,14 @@ int main(){
     if(mode=="baseline"){
         bdr::ResolutiveIndex idx(4096,.78);for(std::size_t i=0;i<n;++i)idx.put("k"+std::to_string(i),value);
         for(std::size_t i=0;i<updates;++i){std::string v(vb,char('a'+(i%26)));idx.put("k"+std::to_string(i%n),v);}
-        for(std::size_t i=0;i<10000;++i){auto x=idx.get("k"+std::to_string((i*9973)%n));if(!x)throw std::runtime_error("baseline verify");}
-        std::cout<<"COMPACT_ABLATION PASS mode=baseline records="<<idx.size()<<" value_bytes="<<vb<<" updates="<<updates;
+        for(std::size_t i=0;i<10000;++i){const auto j=(i*9973)%n;auto x=idx.get("k"+std::to_string(j));const auto expected=expected_value(j,n,vb,updates);if(!x||*x!=expected)throw std::runtime_error("baseline value verify");}
+        std::cout<<"COMPACT_ABLATION PASS mode=baseline records="<<idx.size()<<" value_bytes="<<vb<<" updates="<<updates<<" value_verified=10000";
     } else {
         const bool reclaim=(mode=="compact_gc");
         CompactIndex idx(4096,reclaim);for(std::size_t i=0;i<n;++i)idx.put("k"+std::to_string(i),value);
         for(std::size_t i=0;i<updates;++i){std::string v(vb,char('a'+(i%26)));idx.put("k"+std::to_string(i%n),v);}
-        for(std::size_t i=0;i<10000;++i){auto x=idx.get("k"+std::to_string((i*9973)%n));if(!x)throw std::runtime_error("compact verify");}
-        std::cout<<"COMPACT_ABLATION PASS mode="<<mode<<" records="<<idx.size()<<" value_bytes="<<vb<<" updates="<<updates<<" arena_bytes="<<idx.arena_bytes()<<" garbage_bytes="<<idx.garbage_bytes()<<" compactions="<<idx.compactions();
+        for(std::size_t i=0;i<10000;++i){const auto j=(i*9973)%n;auto x=idx.get("k"+std::to_string(j));const auto expected=expected_value(j,n,vb,updates);if(!x||*x!=expected)throw std::runtime_error("compact value verify");}
+        std::cout<<"COMPACT_ABLATION PASS mode="<<mode<<" records="<<idx.size()<<" value_bytes="<<vb<<" updates="<<updates<<" value_verified=10000 arena_bytes="<<idx.arena_bytes()<<" garbage_bytes="<<idx.garbage_bytes()<<" compactions="<<idx.compactions();
     }
     auto t1=Clock::now();std::cout<<" seconds="<<std::chrono::duration<double>(t1-t0).count()<<"\n";
 }
