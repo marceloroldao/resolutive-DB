@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+include(GNUInstallDirs)
 find_package(ZLIB REQUIRED)
 find_package(Threads REQUIRED)
 
@@ -24,8 +25,14 @@ target_link_libraries(v86_contract PRIVATE bdr_v86)
 add_library(bdr_v1_candidate STATIC
     src/database_v1.cpp
 )
-target_include_directories(bdr_v1_candidate PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set_target_properties(bdr_v1_candidate PROPERTIES EXPORT_NAME bdr OUTPUT_NAME bdr)
+target_include_directories(bdr_v1_candidate
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
 target_link_libraries(bdr_v1_candidate PUBLIC ZLIB::ZLIB Threads::Threads)
+add_library(bdr::bdr ALIAS bdr_v1_candidate)
 
 add_executable(v1_candidate_contract test_contract.cpp)
 target_link_libraries(v1_candidate_contract PRIVATE bdr_v1_candidate)
@@ -52,6 +59,24 @@ target_link_libraries(v1_compat_candidate PRIVATE bdr_v1_candidate)
 
 add_executable(v1_compat_fallback test_v1_cross_compat.cpp)
 target_link_libraries(v1_compat_fallback PRIVATE bdr_v1_fallback)
+
+# Install/export only the v1 candidate surface. Baseline and fallback stay internal.
+install(TARGETS bdr_v1_candidate
+    EXPORT bdrTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+install(DIRECTORY include/bdr DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(EXPORT bdrTargets
+    FILE bdrTargets.cmake
+    NAMESPACE bdr::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/bdr
+)
+install(FILES cmake/bdrConfig.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/bdr
+)
 
 enable_testing()
 add_test(NAME v86_contract COMMAND v86_contract)
