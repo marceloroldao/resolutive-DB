@@ -1,12 +1,12 @@
-# BDR v1.0.0 — Draft Release Notes
+# BDR v1.0.0 — Release Notes
 
-Status: **DRAFT / NOT TAGGED / NOT PUBLISHED**
+Status: **PUBLICATION READY / TAG PENDING**
 
-This document prepares the first stable BDR release. It does not create a release, tag, DOI, or publication.
+BDR v1.0.0 is the first stable-engine line of the Resolutive Database Engine. The technical tree has completed final validation and is frozen for publication. The release becomes public only when the v1.0.0 tag/GitHub Release is created from the validated commit.
 
 ## Core
 
-- `CompactIndex` becomes the preferred v1 internal index.
+- `CompactIndex` is the preferred v1 internal index.
 - Legacy `ResolutiveIndex` remains available internally as a regression fallback.
 - Public C++ source API is frozen through `database.hpp` and CI lock.
 - Stable CMake consumer target: `bdr::bdr`.
@@ -37,12 +37,17 @@ This document prepares the first stable BDR release. It does not create a releas
 - v1 guarantees the frozen C++ source API documented in `docs/V1_PUBLIC_API.md`.
 - v1 does **not** promise shared-library ABI compatibility across future releases; the supported distribution contract is the static CMake package target `bdr::bdr`.
 
-## Release governance
+## Performance claims
 
-Before publication, all of the following must be true:
+BDR v1.0.0 does not claim universal performance superiority over existing database engines. Benchmark results remain workload-specific and environment-specific. The project does not claim strict worst-case O(1) complexity for the complete database engine.
 
-1. finalization branch CI is green;
-2. final `main` tree is validated;
-3. README, CHANGELOG, CITATION.cff, `.zenodo.json`, and package version metadata are updated together;
-4. no DOI is invented or predeclared;
-5. tag/release publication occurs only after explicit final approval.
+## Publication metadata
+
+- Version: `1.0.0`.
+- Software DOI: intentionally not predeclared. It must be added only after the publication service returns the real identifier.
+- Scientific preprint DOI: `10.5281/zenodo.21937842`.
+- Software license: BDR Academic and Non-Commercial Research License v1.0.
+
+## Freeze rule
+
+Any code change after this publication-ready validation invalidates the frozen release tree and requires rerunning the relevant technical gates before tagging v1.0.0.

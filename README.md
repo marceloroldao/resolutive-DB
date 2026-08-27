@@ -1,60 +1,70 @@
 # Banco de Dados Resolutivo (BDR)
 
-**Current release candidate: BDR v0.2.0-rc1 — Experimental / Release Candidate**
+**Current stable-engine line: BDR v1.0.0 — Publication Ready / Tag Pending**
 
-**Software DOI (v0.2.0-rc1):** 10.5281/zenodo.22074886  
+**Software DOI (v1.0.0):** pending publication; no DOI is predeclared  
+**Previous software DOI (v0.2.0-rc1):** 10.5281/zenodo.22074886  
 **Historical software DOI (v0.1.0):** 10.5281/zenodo.21938148  
 **Scientific preprint DOI:** 10.5281/zenodo.21937842
 
-Projeto experimental da **ETBRA Tecnologias** para investigar um mecanismo de armazenamento persistente e endereçamento resolutivo determinístico, com particionamento local, integração por C ABI e recuperação transacional.
+Projeto da **ETBRA Tecnologias** para investigar e desenvolver um mecanismo de armazenamento persistente e endereçamento resolutivo determinístico, com particionamento local, integração nativa e recuperação transacional.
 
-> **Status científico/engenharia:** v0.2.0-rc1 é uma release candidate experimental e não deve ser apresentada como banco de dados production-ready. O projeto não reivindica complexidade O(1) estrita no pior caso para o motor completo; resultados de desempenho são específicos ao workload e ao ambiente de teste.
+> **Status de engenharia:** v1.0.0 é a primeira linha de motor estável do BDR. A árvore técnica foi validada e congelada para publicação. A versão só deve ser considerada publicamente lançada depois da criação explícita da tag/GitHub Release `v1.0.0`. O projeto não reivindica complexidade O(1) estrita no pior caso para o motor completo; resultados de desempenho permanecem específicos ao workload e ao ambiente de teste.
 
-## Estado atual — v0.2.0-rc1
+## Estado atual — v1.0.0
 
-A linha v0.2.0-rc1 consolida:
+A v1.0.0 consolida:
 
-- core C++ persistente;
-- caminho determinístico `rho + local Robin Hood + fingerprint`;
-- valores binários de tamanho variável;
-- API C++ para `open`, `get`, `put`, `delete`, `wait`, `sync`, `checkpoint` e `close`;
-- C ABI v1 congelada para integração externa;
-- binding Python nativo `bdr-native` versão `0.2.0rc1`;
-- WAL BDW3 com sequence numbers e verificações de integridade;
-- snapshots/checkpoints BDR3 com CRC;
-- streaming snapshot recovery;
-- reparo de torn-tail no último WAL incompleto;
-- lock exclusivo por processo;
-- propagação de erros de I/O pela API;
-- validações de multiwriter, checkpoint, crash recovery, soak e compatibilidade;
-- benchmarks comparativos com SQLite, LMDB, LevelDB e RocksDB.
+- core C++ persistente validado;
+- `CompactIndex` como índice interno preferencial;
+- `ResolutiveIndex` preservado como fallback interno de regressão;
+- API pública C++ congelada em `database.hpp`;
+- target CMake estável `bdr::bdr` para consumidores externos;
+- entry point CMake na raiz do repositório;
+- BDR3 para snapshots/checkpoints;
+- BDW3 para write-ahead log;
+- streaming checkpoint validado;
+- recuperação de torn-tail WAL;
+- compatibilidade de persistência em quatro direções entre baseline, candidato e fallback;
+- 12 failpoints determinísticos de crash durante checkpoint;
+- 200 ciclos checkpoint/reopen com 2.000.000 de operações;
+- soak materializado de 50.000.000 de operações;
+- validações V99 e V100 concluídas;
+- pacote raiz versionado como `1.0.0`.
 
-A evidência de fechamento V100 registrou `candidate: true`, incluindo soak de 500.000 mutações, contrato do core, C ABI v1, wheel Python instalado e audits de readiness/metadata/staging. Consulte `docs/release/v0.2.0-rc1-evidence.md` e `RELEASE_NOTES_v0.2.0-rc1.md`.
+Consulte `RELEASE_NOTES_v1.0.0.md`, `docs/V1_PUBLIC_API.md`, `docs/V1_FINAL_AUDIT.md` e `docs/V1_RELEASE_CHECKLIST.md`.
 
 ## Compatibilidade de dados
 
-A v0.2.0-rc1 utiliza:
+A v1 preserva:
 
 - **BDR3** para snapshots/checkpoints;
-- **BDW3** para segmentos de write-ahead log;
-- chave e valor binários de tamanho variável no core nativo.
+- **BDW3** para segmentos de write-ahead log.
 
-Mudanças futuras incompatíveis de formato devem introduzir versão/magic explícitos e documentação de migração.
+Mudanças futuras incompatíveis de formato devem introduzir versão/magic explícitos e documentação de migração. Os formatos BDR3/BDW3 não devem ser modificados durante o fechamento/publicação da v1.
 
-## API Python nativa v0.2.0-rc1
+## Integração C++
 
-O binding nativo está em `experimental/api_v88/python/bdr_native` e expõe uma interface semelhante a:
+O contrato de distribuição suportado pela v1 é o pacote CMake estático com target:
 
-```python
-from bdr_native import Database
-
-with Database("./data") as db:
-    db.put_sync(b"key", b"value")
-    value = db.get(b"key")
-    db.checkpoint()
+```cmake
+find_package(bdr CONFIG REQUIRED)
+target_link_libraries(my_app PRIVATE bdr::bdr)
 ```
 
-Essa é a linha relevante para integrações novas, inclusive testes com payloads binários produzidos por outros componentes.
+A API pública de fonte está congelada em `database.hpp`. Headers dos índices internos não fazem parte do contrato público.
+
+## API Python
+
+O pacote raiz `resolutive-db` está versionado como `1.0.0` e preserva a API Python existente:
+
+```python
+from bdr import PersistentBDR
+
+# Use a API pública conforme os exemplos e testes do repositório.
+```
+
+Experimentos históricos em `experimental/` permanecem preservados como evidência de desenvolvimento e não devem ser confundidos com o contrato público congelado da v1.
 
 ## Objetivo de pesquisa
 
@@ -66,7 +76,7 @@ A implementação conceitual continua relacionada ao espaço resolutivo:
 \mathcal{R} = (\rho^R, \phi, \theta, f)
 \]
 
-Na baseline Python original:
+Na baseline conceitual:
 
 - `rho_R` seleciona uma partição/bucket;
 - `phi` funciona como assinatura de fase quantizada;
@@ -84,36 +94,38 @@ O acesso à partição é direto, mas a resolução interna depende da estrutura
 | busca binária / B-tree | O(log N) | estrutura ordenada |
 | varredura linear | O(N) | referência de crescimento linear |
 
-Os benchmarks da v0.2.0-rc1 mostram que não existe superioridade universal. Em workloads Python registrados no fechamento V100, SQLite foi mais rápido que BDR em algumas configurações. Todas as alegações devem permanecer reproduzíveis e workload-specific.
+Os benchmarks preservam resultados favoráveis e desfavoráveis ao BDR. Não existe alegação de superioridade universal sobre SQLite, LMDB, LevelDB ou RocksDB. Comparações devem ser reproduzíveis e workload-specific.
 
-## Baseline histórica — v0.1.0
+## Evidência de robustez da v1
 
-A `v0.1.0` permanece a baseline histórica publicada e imutável do projeto.
+A linha v1 foi promovida após validações de API, persistência, crash boundary, compatibilidade, churn, recursos e escala. Entre os gates registrados:
 
-Ela inclui:
+- 50 milhões de operações: PASS;
+- 200 ciclos checkpoint/reopen: PASS;
+- 12 crash failpoints: PASS;
+- instalação CMake + consumidor externo: PASS;
+- compatibilidade BDR3/BDW3: PASS;
+- BDR CI: PASS;
+- V99: PASS;
+- V100: PASS.
 
-- implementação Python em memória;
-- `PersistentBDR` original;
-- `PUT`, `GET` e `DELETE`;
-- WAL segmentado;
-- sequence numbers monotônicos;
-- CRC32;
-- group commit e `fsync`;
-- snapshots BDR2;
-- checkpoint atômico;
-- recuperação após crash;
-- testes com `SIGKILL`;
-- benchmarks/protótipos C++ iniciais.
+Qualquer alteração de código após o freeze exige nova execução dos gates técnicos relevantes antes de uma tag v1.0.0.
 
-A baseline histórica continua citável como:
+## Baselines históricas
 
-**Matos, Marcelo Roldão (2026). Banco de Dados Resolutivo (BDR) / Resolutive Database Engine. Version 0.1.0. Zenodo. DOI: 10.5281/zenodo.21938148.**
+### v0.2.0-rc1
+
+Primeira release candidate de API/ABI publicada. Software DOI: **10.5281/zenodo.22074886**.
+
+### v0.1.0
+
+Baseline histórica experimental e de pesquisa, preservada de forma imutável. Software DOI: **10.5281/zenodo.21938148**.
 
 ## Publicações e citação
 
-### Software BDR v0.2.0-rc1
+### Software BDR v1.0.0
 
-**Matos, Marcelo Roldão (2026). Banco de Dados Resolutivo (BDR) / Resolutive Database Engine. Version 0.2.0-rc1. Zenodo. DOI: 10.5281/zenodo.22074886.**
+A metadata de publicação está preparada, mas o DOI da v1.0.0 **não é pré-declarado**. Ele deve ser registrado no repositório somente depois que o serviço de publicação devolver o identificador real.
 
 ### Preprint científico
 
@@ -135,6 +147,7 @@ A licença de software não concede direitos de patente.
 ORCID: 0009-0003-6075-4680  
 ETBRA Tecnologias — 2026
 
+**Software DOI v1.0.0:** pending publication  
 **Software DOI v0.2.0-rc1:** 10.5281/zenodo.22074886  
 **Software DOI v0.1.0:** 10.5281/zenodo.21938148  
 **Preprint DOI:** 10.5281/zenodo.21937842

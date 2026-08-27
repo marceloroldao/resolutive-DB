@@ -1,6 +1,7 @@
 {
   "title": "Banco de Dados Resolutivo (BDR) / Resolutive Database Engine",
-  "description": "BDR v0.2.0-rc1 is an experimental API/ABI release candidate of the persistent key-value Resolutive Database Engine. It includes the consolidated C++ core, frozen C ABI v1, Python bindings, CMake package integration, BDW3 write-ahead logging, BDR3 checkpoints, streaming recovery, process-level locking, writer error propagation, and reproducible validation and benchmarking. The release is not represented as production-ready and does not claim strict worst-case O(1) complexity for the complete engine. The associated scientific preprint is a separate Zenodo publication with DOI 10.5281/zenodo.21937842.",
+  "version": "1.0.0",
+  "description": "BDR v1.0.0 is the first stable-engine line of the Resolutive Database Engine. It provides a frozen public C++ source API, the bdr::bdr CMake consumer target, CompactIndex as the preferred internal index, BDR3 snapshots, BDW3 write-ahead logs, streaming checkpoints, crash recovery, and reproducible high-cardinality validation. Performance claims remain workload-specific and the project does not claim strict worst-case O(1) complexity for the complete engine. The associated scientific preprint is a separate Zenodo publication with DOI 10.5281/zenodo.21937842.",
   "creators": [
     {
       "name": "Matos, Marcelo Roldão",
@@ -17,8 +18,8 @@
     "persistent storage",
     "write-ahead log",
     "crash recovery",
-    "C ABI",
-    "Python bindings",
+    "C++ API",
+    "CMake",
     "adaptive partitioning",
     "benchmarking",
     "reproducible research"

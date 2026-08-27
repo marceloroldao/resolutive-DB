@@ -10,10 +10,11 @@ notes = []
 
 license_text = (root / 'LICENSE').read_text(encoding='utf-8')
 citation = (root / 'CITATION.cff').read_text(encoding='utf-8')
-pyproject = (root / 'experimental/api_v88/python/pyproject.toml').read_text(encoding='utf-8')
+root_pyproject = (root / 'pyproject.toml').read_text(encoding='utf-8')
+native_pyproject = (root / 'experimental/api_v88/python/pyproject.toml').read_text(encoding='utf-8')
 freeze = (root / 'experimental/api_v91/API_FREEZE_DRAFT.md').read_text(encoding='utf-8')
-release_notes_path = root / 'RELEASE_NOTES_v0.2.0-rc1.md'
-release_notes = release_notes_path.read_text(encoding='utf-8') if release_notes_path.exists() else ''
+rc_release_notes_path = root / 'RELEASE_NOTES_v0.2.0-rc1.md'
+v1_release_notes_path = root / 'RELEASE_NOTES_v1.0.0.md'
 
 for needle in [
     'BDR ACADEMIC AND NON-COMMERCIAL RESEARCH LICENSE v1.0',
@@ -24,52 +25,69 @@ for needle in [
     if needle not in license_text:
         errors.append(f'LICENSE missing required clause: {needle}')
 
-published_release_needles = [
-    'version: "0.2.0-rc1"',
-    'date-released: 2026-08-24',
+# The publication branch must identify v1.0.0, while never predeclaring a
+# software DOI. The only DOI allowed in CITATION.cff before publication is the
+# already-real associated scientific preprint DOI in preferred-citation.
+for needle in [
+    'version: "1.0.0"',
+    'repository-code: "https://github.com/marceloroldao/resolutive-DB"',
+    'doi: "10.5281/zenodo.21937842"',
+]:
+    if needle not in citation:
+        errors.append(f'CITATION.cff v1 publication metadata missing: {needle}')
+
+for forbidden in [
     'doi: "10.5281/zenodo.22074886"',
     'releases/tag/0.2.0-rc1',
-]
-for needle in published_release_needles:
-    if needle not in citation:
-        errors.append(f'CITATION.cff published v0.2.0-rc1 baseline changed or missing: {needle}')
+    'version: "0.2.0-rc1"',
+]:
+    if forbidden in citation:
+        errors.append(f'CITATION.cff still contains superseded software-release metadata: {forbidden}')
 
-if 'doi: "10.5281/zenodo.21937842"' not in citation:
-    errors.append('CITATION.cff associated scientific preprint DOI changed or missing.')
+root_name = re.search(r'^name\s*=\s*"([^"]+)"', root_pyproject, re.M)
+root_version = re.search(r'^version\s*=\s*"([^"]+)"', root_pyproject, re.M)
+root_name = root_name.group(1) if root_name else None
+root_version = root_version.group(1) if root_version else None
+if root_name != 'resolutive-db' or root_version != '1.0.0':
+    errors.append(f'Root package metadata is not v1.0.0: name={root_name!r} version={root_version!r}')
 
-notes.append('CITATION.cff remains pinned to the published v0.2.0-rc1 software release during v1 preparation.')
-notes.append('The v0.1 research history remains preserved by its immutable tag/release; the current citation points to the latest published software baseline.')
-
-m = re.search(r'^name\s*=\s*"([^"]+)"', pyproject, re.M)
-v = re.search(r'^version\s*=\s*"([^"]+)"', pyproject, re.M)
-name = m.group(1) if m else None
-version = v.group(1) if v else None
-
-rc_baseline = (
-    name == 'bdr-native'
-    and version == '0.2.0rc1'
+# Preserve the historical native RC integration fixture exactly as published;
+# it is evidence, not the v1 package version source of truth.
+native_name = re.search(r'^name\s*=\s*"([^"]+)"', native_pyproject, re.M)
+native_version = re.search(r'^version\s*=\s*"([^"]+)"', native_pyproject, re.M)
+native_name = native_name.group(1) if native_name else None
+native_version = native_version.group(1) if native_version else None
+historical_rc_intact = (
+    native_name == 'bdr-native'
+    and native_version == '0.2.0rc1'
     and 'C ABI v1' in freeze
-    and release_notes_path.exists()
-    and 'Release Candidate' in release_notes
+    and rc_release_notes_path.exists()
 )
+if not historical_rc_intact:
+    errors.append('Published v0.2.0-rc1 historical integration evidence is not intact.')
 
-if rc_baseline:
-    notes.append('Published release-candidate integration baseline detected: bdr-native 0.2.0rc1 with frozen C ABI v1.')
-    if 'experimental, not released' in freeze.lower():
-        errors.append('Frozen RC ABI document still identifies itself as experimental/not released.')
+if not v1_release_notes_path.exists():
+    errors.append('Final RELEASE_NOTES_v1.0.0.md is missing.')
 else:
-    errors.append('Published v0.2.0-rc1 integration baseline is not intact.')
+    v1_notes = v1_release_notes_path.read_text(encoding='utf-8')
+    for needle in ['PUBLICATION READY / TAG PENDING', '50,000,000-operation materialized soak: PASS']:
+        if needle not in v1_notes:
+            errors.append(f'RELEASE_NOTES_v1.0.0.md missing required publication evidence: {needle}')
 
-published_baseline_preserved = all(needle in citation for needle in published_release_needles)
+notes.append('CITATION.cff is staged for v1.0.0 without a predeclared software DOI.')
+notes.append('The real v0.2.0-rc1 integration baseline remains preserved as historical evidence.')
+notes.append('The associated scientific preprint DOI remains unchanged and real.')
 
 result = {
-    'schema': 3,
+    'schema': 4,
     'release_metadata_ready': not errors,
-    'release_candidate_staged': rc_baseline,
-    'published_baseline_preserved': published_baseline_preserved,
+    'publication_target': '1.0.0',
+    'software_doi_predeclared': 'doi: "10.5281/zenodo.22074886"' in citation,
+    'historical_rc_integration_preserved': historical_rc_intact,
     'published_software_baseline': '0.2.0-rc1',
+    'root_package': {'name': root_name, 'version': root_version},
+    'historical_native_package': {'name': native_name, 'version': native_version},
     'license_model': 'academic/non-commercial source-available; commercial license required',
-    'python_package': {'name': name, 'version': version},
     'notes': notes,
     'errors': errors,
 }
