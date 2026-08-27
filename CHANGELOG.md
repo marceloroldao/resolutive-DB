@@ -1,8 +1,8 @@
 # Changelog
 
-## 1.1.0 — Internal Release Candidate / Unreleased
+## 1.1.0 — Final / Publication Ready
 
-Backward-compatible post-v1 development line focused on atomic logical-memory writes for Memoria.ia while preserving the immutable v1.0.0 baseline.
+Backward-compatible evolution of the stable v1 line focused on atomic logical-memory writes for Memoria.ia while preserving the immutable v1.0.0 baseline.
 
 ### Public API
 - Existing `bdr::Database` v1.0 source calls remain unchanged and continue to compile through the installed `bdr::bdr` target.
@@ -30,7 +30,11 @@ Backward-compatible post-v1 development line focused on atomic logical-memory wr
 - V109 integrated crash-recovery matrix: PASS.
 - V110 durability contract: PASS.
 - V111 installed public API compatibility: PASS.
+- V112 Memoria.ia representative workload: PASS.
 - BDR CI: PASS.
+- V99 evidence closure: PASS.
+- V100 evidence closure: PASS.
+- Post-merge BDR CI on `main`: PASS.
 
 ### Memoria.ia acceptance evidence
 Representative V112 workload: 512 logical memories × 24 physical records = 12,288 records, with one durability boundary per logical memory.
@@ -45,12 +49,14 @@ After V113 removed an unnecessary full-state copy from each recovered BDW4 batch
 
 These figures are workload- and runner-specific and are retained as regression evidence, not universal performance claims.
 
-### Status
-Internal release candidate only. No v1.1.0 tag, GitHub Release or publication DOI has been created. v1.0.0 remains the released stable baseline until final review and explicit promotion.
+### Publication policy
+- The technical v1.1.0 tree is integrated and validated.
+- Publication metadata is staged without inventing or predeclaring a v1.1.0 DOI.
+- The definitive software DOI is added only after the publication service returns it.
 
-## 1.0.0 — Final / Publication Ready
+## 1.0.0 — Final / Released
 
-First stable-engine line of the Resolutive Database Engine (BDR). The technical tree is frozen and publication-ready. The release is not considered publicly published until the v1.0.0 tag/GitHub Release exists.
+First stable-engine line of the Resolutive Database Engine (BDR). Software DOI: 10.5281/zenodo.22120246.
 
 ### Core
 - `CompactIndex` is the preferred internal index for the v1 engine.
@@ -58,7 +64,6 @@ First stable-engine line of the Resolutive Database Engine (BDR). The technical 
 - Public C++ source API is frozen through `database.hpp` and CI lock.
 - Stable CMake consumer target: `bdr::bdr`.
 - Repository-root CMake entry point supports normal build/install workflows.
-- Only `database.hpp` is installed as public API; internal index headers are not exported.
 
 ### Persistence and compatibility
 - BDR3 snapshots preserved.
@@ -71,18 +76,12 @@ First stable-engine line of the Resolutive Database Engine (BDR). The technical 
 ### Validation
 - 50,000,000-operation materialized soak: PASS.
 - 200 checkpoint/reopen cycles with 2,000,000 operations: PASS on candidate and fallback.
-- Paired high-cardinality resource benchmarks show lower RSS for CompactIndex without material throughput regression.
 - Root-level CMake contracts: PASS.
 - Root-level package install and external consumer: PASS.
 - Root-level persistence compatibility: PASS.
 - BDR CI: PASS.
 - V99 evidence closure: PASS.
 - V100 evidence closure: PASS.
-
-### Release policy
-- v1 publication metadata is staged without inventing or predeclaring a software DOI.
-- The software DOI will be added only after the publication service returns the actual identifier.
-- Shared-library cross-version ABI compatibility is not promised; the supported v1 distribution contract is the static CMake target `bdr::bdr` and frozen C++ source API.
 
 ## 0.2.0-rc1 — Experimental / Release Candidate
 
