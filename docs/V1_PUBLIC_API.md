@@ -44,11 +44,17 @@ The implementation backend may change between the compact candidate and the fall
 
 Before v1 is promoted, the header above is treated as frozen. Any change to names, signatures, return types, enum values, struct fields, field types, default values, namespace, or ownership semantics is a breaking API review event and must intentionally update the API lock.
 
-Implementation-only changes that preserve this header are allowed and must continue to pass the candidate/fallback contract, crash-boundary, cross-version persistence, lifecycle, and checkpoint-churn gates.
+Implementation-only changes that preserve this header are allowed and must continue to pass the candidate/fallback contract, crash-boundary, cross-version persistence, lifecycle, checkpoint-churn, package-consumer, and resource gates.
 
-## ABI note
+## v1 binary packaging policy
 
-This is primarily a C++ source/API freeze. A stable binary ABI across independently compiled shared-library versions is not claimed yet. The current build uses static-library targets. A binary ABI guarantee, shared-library versioning policy, install/export package layout, and symbol visibility policy must be defined separately before claiming ABI stability.
+For v1, the supported C++ distribution model is the installed **static** CMake target `bdr::bdr`.
+
+The v1 compatibility promise is source/API compatibility for the frozen public header plus BDR3/BDW3 persistence compatibility. v1 does **not** claim a stable cross-version binary ABI for independently compiled shared libraries (`.so`, `.dylib`, or `.dll`).
+
+This is intentional: a shared-library ABI would require a separate symbol-visibility, SONAME/versioning, compiler/runtime compatibility and binary compatibility policy. That work is deferred beyond the first stable release rather than being implied without sufficient evidence.
+
+Applications should link against the installed `bdr::bdr` target and rebuild when upgrading the library implementation.
 
 ## Persistence independence
 
