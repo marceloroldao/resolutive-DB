@@ -1,6 +1,6 @@
-# BDR v1.1.0 — Release Candidate Notes
+# BDR v1.1.0 — Release Notes
 
-Status: **internal release candidate / unreleased**.
+Status: **publication ready / tag pending**.
 
 BDR v1.1.0 extends the stable v1 line with an opt-in atomic logical-write path designed around direct Memoria.ia persistence requirements. The published `v1.0.0` baseline remains immutable and existing `bdr::Database` source calls remain supported.
 
@@ -41,7 +41,7 @@ BDR3 and BDW3 are not reinterpreted. New atomic writes are stored separately in 
 
 ## Validation summary
 
-The v1.1 internal candidate passed:
+The v1.1 candidate passed:
 
 - V101 Atomic Batch;
 - V102 File WAL;
@@ -55,7 +55,10 @@ The v1.1 internal candidate passed:
 - V110 Durability Contract;
 - V111 Public API Compatibility;
 - V112 Memoria Atomic Benchmark;
-- BDR CI.
+- BDR CI;
+- V99 Evidence Closure;
+- V100 Evidence Closure;
+- final post-merge BDR CI on `main`.
 
 V109 exercises every truncation position of a representative next batch after a durable prefix and verifies all-or-none recovery while preserving legacy v1.0 files.
 
@@ -79,6 +82,6 @@ These measurements are runner- and workload-specific regression evidence, not un
 
 v1.1.0 does not introduce general SQL-style transactions, MVCC, distributed transactions, cross-platform I/O abstraction, checkpoint telemetry or a new Python binding contract. Those belong to later v1.x work.
 
-## Release status
+## Publication status
 
-No `v1.1.0` tag, GitHub Release or publication DOI has been created by this staging work. The branch remains an internal release candidate until final audit and explicit promotion.
+The technical v1.1.0 tree is merged and validated. Publication metadata is staged without inventing a DOI. The `v1.1.0` tag and GitHub Release are created only after this finalization branch passes its release audits. The definitive software DOI is recorded only after the publication service returns the actual identifier.
