@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.0.0 — Unreleased / Finalization
+
+First stable-engine candidate line of the Resolutive Database Engine (BDR). This section is preparatory and does not represent a published release until the v1 tag/release is explicitly created.
+
+### Core
+- `CompactIndex` is the preferred internal index for the v1 engine.
+- `ResolutiveIndex` remains available internally as a regression fallback.
+- Public C++ source API is frozen through `database.hpp` and CI lock.
+- Stable CMake consumer target: `bdr::bdr`.
+- Repository-root CMake entry point added for normal build/install workflows.
+- Only `database.hpp` is installed as public API; internal index headers are not exported.
+
+### Persistence and compatibility
+- BDR3 snapshots preserved.
+- BDW3 WAL preserved.
+- Streaming checkpoint path validated.
+- Four-direction persistence compatibility validated between baseline, candidate and fallback.
+- Torn-WAL recovery preserved.
+- Twelve deterministic checkpoint crash-boundary failpoints pass.
+
+### Validation
+- 50,000,000-operation materialized soak: PASS.
+- 200 checkpoint/reopen cycles with 2,000,000 operations: PASS on candidate and fallback.
+- Paired high-cardinality resource benchmarks show lower RSS for CompactIndex without material throughput regression.
+- Root-level CMake contracts: PASS.
+- Root-level package install and external consumer: PASS.
+- Root-level persistence compatibility: PASS.
+- BDR CI: PASS.
+- V99 evidence closure: PASS.
+- V100 evidence closure: PASS.
+
+### Release policy
+- No v1 DOI, tag, or release is declared by this changelog entry.
+- Public metadata remains on v0.2.0-rc1 until final v1 approval and publication.
+- Shared-library cross-version ABI compatibility is not promised; the supported v1 distribution contract is the static CMake target `bdr::bdr` and frozen C++ source API.
+
 ## 0.2.0-rc1 — Experimental / Release Candidate
 
 First API-capable release-candidate line of the Resolutive Database Engine (BDR).
