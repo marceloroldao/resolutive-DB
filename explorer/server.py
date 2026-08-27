@@ -11,6 +11,8 @@ from urllib.parse import urlparse
 from bdr import BancoDeDadosResolutivo
 
 from .adapter import ExplorerSnapshotProvider
+from .events import EventBuffer
+from .observation import PublicBDRObservationProvider
 
 
 STATIC_DIR = Path(__file__).with_name("static")
@@ -34,6 +36,8 @@ def build_demo_database() -> BancoDeDadosResolutivo:
 
 class ExplorerHandler(SimpleHTTPRequestHandler):
     provider: ExplorerSnapshotProvider
+    observation_provider: PublicBDRObservationProvider
+    events: EventBuffer
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
@@ -55,6 +59,12 @@ class ExplorerHandler(SimpleHTTPRequestHandler):
         if path == "/api/snapshot":
             self._json(self.provider.snapshot())
             return
+        if path == "/api/observation":
+            self._json(self.observation_provider.observe().as_dict())
+            return
+        if path == "/api/events":
+            self._json({"schema": "bdr-explorer-events/v0.1", "events": self.events.snapshot()})
+            return
         super().do_GET()
 
     def log_message(self, format: str, *args) -> None:
@@ -75,7 +85,10 @@ def main() -> None:
     if not args.demo:
         parser.error("v0.1 currently requires --demo; persistent read-only opening is planned for E02")
 
-    ExplorerHandler.provider = ExplorerSnapshotProvider(build_demo_database())
+    database = build_demo_database()
+    ExplorerHandler.provider = ExplorerSnapshotProvider(database)
+    ExplorerHandler.observation_provider = PublicBDRObservationProvider(database)
+    ExplorerHandler.events = EventBuffer()
     server = ThreadingHTTPServer((args.host, args.port), ExplorerHandler)
     print(f"Resolutive DB Explorer: http://{args.host}:{args.port}")
     print("Mode: read-only demo")
