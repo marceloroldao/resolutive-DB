@@ -15,7 +15,6 @@ freeze = (root / 'experimental/api_v91/API_FREEZE_DRAFT.md').read_text(encoding=
 release_notes_path = root / 'RELEASE_NOTES_v0.2.0-rc1.md'
 release_notes = release_notes_path.read_text(encoding='utf-8') if release_notes_path.exists() else ''
 
-# Licensing model must remain explicit and source-available, non-commercial.
 for needle in [
     'BDR ACADEMIC AND NON-COMMERCIAL RESEARCH LICENSE v1.0',
     'Commercial Use Prohibited Without Separate License',
@@ -25,25 +24,28 @@ for needle in [
     if needle not in license_text:
         errors.append(f'LICENSE missing required clause: {needle}')
 
-# Published citation metadata stays pinned to immutable v0.1.0 until a new release
-# is actually tagged/published. Staging a release candidate does not rewrite history.
-for needle in [
-    'version: "0.1.0"',
-    'doi: "10.5281/zenodo.21938148"',
-    'releases/tag/v0.1.0',
-    'doi: "10.5281/zenodo.21937842"',
-]:
+published_release_needles = [
+    'version: "0.2.0-rc1"',
+    'date-released: 2026-08-24',
+    'doi: "10.5281/zenodo.22074886"',
+    'releases/tag/0.2.0-rc1',
+]
+for needle in published_release_needles:
     if needle not in citation:
-        errors.append(f'CITATION.cff historical baseline changed or missing: {needle}')
-notes.append('CITATION.cff intentionally remains pinned to published v0.1.0 until release time.')
+        errors.append(f'CITATION.cff published v0.2.0-rc1 baseline changed or missing: {needle}')
+
+if 'doi: "10.5281/zenodo.21937842"' not in citation:
+    errors.append('CITATION.cff associated scientific preprint DOI changed or missing.')
+
+notes.append('CITATION.cff remains pinned to the published v0.2.0-rc1 software release during v1 preparation.')
+notes.append('The v0.1 research history remains preserved by its immutable tag/release; the current citation points to the latest published software baseline.')
 
 m = re.search(r'^name\s*=\s*"([^"]+)"', pyproject, re.M)
 v = re.search(r'^version\s*=\s*"([^"]+)"', pyproject, re.M)
 name = m.group(1) if m else None
 version = v.group(1) if v else None
 
-# Distinguish pre-RC experimentation from an explicitly staged release candidate.
-rc_staged = (
+rc_baseline = (
     name == 'bdr-native'
     and version == '0.2.0rc1'
     and 'C ABI v1' in freeze
@@ -51,24 +53,21 @@ rc_staged = (
     and 'Release Candidate' in release_notes
 )
 
-if rc_staged:
-    notes.append('Release-candidate staging detected: bdr-native 0.2.0rc1 with frozen C ABI v1.')
+if rc_baseline:
+    notes.append('Published release-candidate integration baseline detected: bdr-native 0.2.0rc1 with frozen C ABI v1.')
     if 'experimental, not released' in freeze.lower():
         errors.append('Frozen RC ABI document still identifies itself as experimental/not released.')
 else:
-    # Before RC staging the package must remain explicitly experimental.
-    if not name or 'experimental' not in name:
-        errors.append('Pre-RC wheel name must remain explicitly experimental.')
-    if not version or version in {'1.0.0', '0.2.0', '0.2.0rc1'}:
-        errors.append('Pre-RC wheel must not use a release or release-candidate version.')
-    if 'draft' not in freeze.lower():
-        errors.append('Pre-RC API freeze document must identify itself as a draft.')
+    errors.append('Published v0.2.0-rc1 integration baseline is not intact.')
+
+published_baseline_preserved = all(needle in citation for needle in published_release_needles)
 
 result = {
-    'schema': 2,
+    'schema': 3,
     'release_metadata_ready': not errors,
-    'release_candidate_staged': rc_staged,
-    'published_baseline_preserved': 'version: "0.1.0"' in citation,
+    'release_candidate_staged': rc_baseline,
+    'published_baseline_preserved': published_baseline_preserved,
+    'published_software_baseline': '0.2.0-rc1',
     'license_model': 'academic/non-commercial source-available; commercial license required',
     'python_package': {'name': name, 'version': version},
     'notes': notes,

@@ -1,0 +1,186 @@
+name: V1 Clean Promotion
+
+on:
+  push:
+    branches: [ promotion/v1-clean ]
+  workflow_dispatch:
+
+jobs:
+  api-lock:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify frozen public API
+        run: |
+          expected=$(awk '{print $1}' .github/v1-public-api.lock)
+          path=$(awk '{print $2}' .github/v1-public-api.lock)
+          actual=$(git hash-object "$path")
+          test "$actual" = "$expected"
+
+  cmake-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ cmake zlib1g-dev
+      - name: Configure
+        run: cmake -S experimental/api_v86 -B build/v1 -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build/v1 --parallel --target v1_candidate_contract v1_fallback_contract
+      - name: Test
+        run: ctest --test-dir build/v1 --output-on-failure -R '^v1_.*_contract$'
+
+  cross-compat:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ cmake zlib1g-dev
+      - name: Configure and build
+        run: |
+          cmake -S experimental/api_v86 -B build/v1 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/v1 --parallel --target v1_compat_baseline v1_compat_candidate v1_compat_fallback
+      - name: Baseline to candidate
+        run: |
+          rm -rf /tmp/bdr-v1-a
+          build/v1/v1_compat_baseline write /tmp/bdr-v1-a
+          build/v1/v1_compat_candidate verify /tmp/bdr-v1-a
+      - name: Candidate to baseline
+        run: |
+          rm -rf /tmp/bdr-v1-b
+          build/v1/v1_compat_candidate write /tmp/bdr-v1-b
+          build/v1/v1_compat_baseline verify /tmp/bdr-v1-b
+      - name: Fallback to candidate
+        run: |
+          rm -rf /tmp/bdr-v1-c
+          build/v1/v1_compat_fallback write /tmp/bdr-v1-c
+          build/v1/v1_compat_candidate verify /tmp/bdr-v1-c
+      - name: Candidate to fallback
+        run: |
+          rm -rf /tmp/bdr-v1-d
+          build/v1/v1_compat_candidate write /tmp/bdr-v1-d
+          build/v1/v1_compat_fallback verify /tmp/bdr-v1-d
+
+  package-consumer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ cmake zlib1g-dev
+      - name: Install package
+        run: |
+          cmake -S experimental/api_v86 -B build/package -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PWD/build/prefix"
+          cmake --build build/package --parallel --target bdr_v1_candidate
+          cmake --install build/package
+      - name: Build external consumer
+        run: |
+          cmake -S experimental/api_v86/package_consumer -B build/consumer -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$PWD/build/prefix"
+          cmake --build build/consumer --parallel
+      - name: Run external consumer
+        run: build/consumer/bdr_v1_package_consumer
+
+  checkpoint-churn:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [candidate, fallback]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Build churn gate
+        shell: bash
+        run: |
+          if [ "${{ matrix.mode }}" = "candidate" ]; then
+            g++ -std=c++17 -O2 -pthread -Iexperimental/api_v86/include \
+              experimental/api_v86/test_v1_checkpoint_churn.cpp \
+              experimental/api_v86/src/database_v1.cpp -lz -o v1_churn
+          else
+            g++ -std=c++17 -O2 -pthread -DBDR_V1_FALLBACK_INDEX -Iexperimental/api_v86/include \
+              experimental/api_v86/test_v1_checkpoint_churn.cpp \
+              experimental/api_v86/src/database_v1.cpp \
+              experimental/api_v86/src/resolutive_index.cpp -lz -o v1_churn
+          fi
+      - name: Run 200-cycle checkpoint/reopen churn
+        env:
+          BDR_V1_CHURN_CYCLES: "200"
+          BDR_V1_CHURN_OPS_PER_CYCLE: "10000"
+          BDR_V1_CHURN_KEY_SPACE: "50000"
+        run: /usr/bin/time -v ./v1_churn
+
+  crash-and-resource:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Build crash gate
+        run: |
+          g++ -std=c++17 -O2 -pthread -Iexperimental/api_v86/include \
+            experimental/api_v86/test_v1_crash_boundary.cpp \
+            experimental/api_v86/src/database_v1.cpp -lz -o v1_crash
+      - name: Run crash gate
+        env:
+          BDR_BACKEND_LABEL: v1-clean-compact-streaming
+        run: ./v1_crash
+      - name: Build paired resource gates
+        run: |
+          g++ -std=c++17 -O2 -pthread -Iexperimental/api_v86/include \
+            experimental/api_v86/test_v1_resource.cpp \
+            experimental/api_v86/src/database_v1.cpp -lz -o v1_resource_candidate
+          g++ -std=c++17 -O2 -pthread -DBDR_V1_FALLBACK_INDEX -Iexperimental/api_v86/include \
+            experimental/api_v86/test_v1_resource.cpp \
+            experimental/api_v86/src/database_v1.cpp \
+            experimental/api_v86/src/resolutive_index.cpp -lz -o v1_resource_fallback
+      - name: Run candidate resource gate
+        env:
+          BDR_BACKEND_LABEL: v1-clean-compact-streaming
+          BDR_RESOURCE_RECORDS: 1000000
+        run: /usr/bin/time -v ./v1_resource_candidate 2>&1 | tee v1_resource_candidate.log
+      - name: Run fallback resource gate
+        env:
+          BDR_BACKEND_LABEL: v1-clean-fallback-streaming
+          BDR_RESOURCE_RECORDS: 1000000
+        run: /usr/bin/time -v ./v1_resource_fallback 2>&1 | tee v1_resource_fallback.log
+      - name: Enforce paired resource thresholds
+        shell: bash
+        run: |
+          c_rss=$(awk -F: '/Maximum resident set size/ {gsub(/^[ \t]+/,"",$2); print $2}' v1_resource_candidate.log | tail -1)
+          f_rss=$(awk -F: '/Maximum resident set size/ {gsub(/^[ \t]+/,"",$2); print $2}' v1_resource_fallback.log | tail -1)
+          c_disk=$(grep 'DATABASE_BACKEND_RESOURCE PASS' v1_resource_candidate.log | grep -oE 'disk_bytes=[0-9]+' | head -1 | cut -d= -f2)
+          f_disk=$(grep 'DATABASE_BACKEND_RESOURCE PASS' v1_resource_fallback.log | grep -oE 'disk_bytes=[0-9]+' | head -1 | cut -d= -f2)
+          c_records=$(grep 'DATABASE_BACKEND_RESOURCE PASS' v1_resource_candidate.log | grep -oE ' records=[0-9]+' | head -1 | cut -d= -f2)
+          f_records=$(grep 'DATABASE_BACKEND_RESOURCE PASS' v1_resource_fallback.log | grep -oE ' records=[0-9]+' | head -1 | cut -d= -f2)
+          c_swaps=$(awk -F: '/Swaps:/ {gsub(/^[ \t]+/,"",$2); print $2}' v1_resource_candidate.log | tail -1)
+          f_swaps=$(awk -F: '/Swaps:/ {gsub(/^[ \t]+/,"",$2); print $2}' v1_resource_fallback.log | tail -1)
+          echo "candidate_rss_kb=$c_rss fallback_rss_kb=$f_rss candidate_disk=$c_disk fallback_disk=$f_disk"
+          echo "candidate_records=$c_records fallback_records=$f_records candidate_swaps=$c_swaps fallback_swaps=$f_swaps"
+          test "$c_records" = "1000000"
+          test "$f_records" = "1000000"
+          test "$c_swaps" = "0"
+          test "$f_swaps" = "0"
+          test "$c_disk" -le 55000000
+          test "$c_disk" = "$f_disk"
+          test $((c_rss * 100)) -le $((f_rss * 95))
+
+  soak-50m:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Build soak
+        run: |
+          g++ -std=c++17 -O2 -pthread -Iexperimental/api_v86/include \
+            experimental/api_v86/test_v1_scale.cpp \
+            experimental/api_v86/src/database_v1.cpp -lz -o v1_scale
+      - name: Run 50M soak
+        env:
+          BDR_SCALE_OPS: "50000000"
+          BDR_SCALE_CYCLE_OPS: "10000"
+          BDR_SCALE_KEY_SPACE: "100000"
+          BDR_SCALE_CHECKPOINT_EVERY_CYCLES: "10"
+        run: /usr/bin/time -v ./v1_scale 2>&1 | tee v1_scale_50m.log
