@@ -8,51 +8,94 @@
 </head>
 <body>
   <header class="topbar">
-    <div>
-      <p class="eyebrow">BANCO DE DADOS RESOLUTIVO</p>
-      <h1>Resolutive DB Explorer</h1>
+    <div class="brand">
+      <span class="brand-mark">R</span>
+      <div>
+        <p class="eyebrow">BANCO DE DADOS RESOLUTIVO</p>
+        <h1>Resolutive DB Explorer</h1>
+      </div>
     </div>
-    <div class="status"><span class="status-dot"></span><span id="health">conectando</span></div>
+    <div class="top-actions">
+      <span class="readonly">READ ONLY</span>
+      <div class="status"><span class="status-dot"></span><span id="health">conectando</span></div>
+    </div>
   </header>
 
-  <main>
-    <section class="metrics" id="metrics"></section>
+  <main class="shell">
+    <aside class="left-rail panel">
+      <label class="search">
+        <span>Buscar</span>
+        <input id="search" type="search" placeholder="ID, fingerprint ou payload" autocomplete="off">
+      </label>
 
-    <section class="workspace">
-      <article class="panel map-panel">
-        <div class="panel-head">
-          <div>
-            <p class="eyebrow">ONTOLOGIA VISUAL</p>
-            <h2>Espaço resolutivo</h2>
-          </div>
-          <p class="hint">ρR → raio · θ → ângulo · fν → escala</p>
-        </div>
-        <div class="canvas-wrap">
-          <svg id="map" viewBox="0 0 900 620" role="img" aria-label="Mapa resolutivo"></svg>
-          <div class="legend">
-            <span>Centro</span>
-            <span>densidade/endereço ρR</span>
-            <span>periferia</span>
-          </div>
-        </div>
-      </article>
+      <nav class="nav-stack" aria-label="Áreas do Explorer">
+        <button class="nav-item active" type="button">Universe <small>agora</small></button>
+        <button class="nav-item" type="button" disabled>Trajectories <small>planejado</small></button>
+        <button class="nav-item" type="button" disabled>Storage <small>planejado</small></button>
+        <button class="nav-item" type="button" disabled>Activity <small>planejado</small></button>
+        <button class="nav-item" type="button" disabled>Diagnostics <small>planejado</small></button>
+      </nav>
 
-      <aside class="panel inspector">
-        <div class="panel-head">
-          <div>
-            <p class="eyebrow">INSPEÇÃO</p>
-            <h2>Nódulo</h2>
-          </div>
+      <section class="rail-section">
+        <p class="rail-title">Visualização física</p>
+        <div class="mapping-row"><span>ρR</span><strong>região radial</strong></div>
+        <div class="mapping-row"><span>θ</span><strong>posição angular</strong></div>
+        <div class="mapping-row"><span>fν</span><strong>escala visual</strong></div>
+        <div class="mapping-row"><span>φ</span><strong>inspeção de fase</strong></div>
+      </section>
+
+      <section class="rail-section boundary">
+        <p class="rail-title">Fonte</p>
+        <p>Somente dados expostos pela API pública do BDR. Relações semânticas não são inferidas.</p>
+      </section>
+    </aside>
+
+    <section class="universe panel">
+      <div class="universe-head">
+        <div>
+          <p class="eyebrow">UNIVERSE</p>
+          <h2>Espaço resolutivo</h2>
         </div>
-        <div id="inspector-empty" class="empty-state">Selecione um nódulo no mapa.</div>
-        <dl id="inspector" hidden></dl>
-      </aside>
+        <div class="view-tabs" aria-label="Modo de visualização">
+          <button class="view-tab active" type="button">Physical BDR</button>
+          <button class="view-tab" type="button" disabled>Semantic</button>
+        </div>
+      </div>
+
+      <section class="metrics" id="metrics"></section>
+
+      <div class="canvas-wrap">
+        <svg id="map" viewBox="0 0 1100 720" role="img" aria-label="Mapa do universo resolutivo"></svg>
+        <div class="canvas-badge">2D · local-first · no GPU</div>
+        <div id="result-count" class="result-count"></div>
+        <div class="legend">
+          <span>núcleo / menor ρR</span>
+          <span>endereço resolutivo</span>
+          <span>periferia / maior ρR</span>
+        </div>
+      </div>
     </section>
+
+    <aside class="right-rail panel inspector">
+      <div class="inspector-head">
+        <p class="eyebrow">INSPECTOR</p>
+        <h2>Estado selecionado</h2>
+      </div>
+      <div id="inspector-empty" class="empty-state">
+        Selecione um nódulo no universo para inspecionar sua representação física no BDR.
+      </div>
+      <dl id="inspector" hidden></dl>
+
+      <section class="future-layer">
+        <p class="rail-title">Semantic overlay</p>
+        <p>Reservado para o adapter da Memoria.ia: conceito, candidatos, trajetória, seleção e contexto.</p>
+      </section>
+    </aside>
   </main>
 
   <footer>
     <span id="version">BDR</span>
-    <span>Explorer v0.1 · somente leitura</span>
+    <span>Explorer v0.1 · observabilidade sem mutações</span>
   </footer>
 
   <script src="/app.js"></script>
