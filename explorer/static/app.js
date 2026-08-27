@@ -20,12 +20,27 @@ function renderMetrics(stats) {
   root.replaceChildren();
   const entries = [
     ["registros", stats.records ?? 0],
-    ["buckets ocupados", stats.occupied_buckets ?? 0],
-    ["fator de carga", Number(stats.load_factor ?? 0).toFixed(5)],
-    ["slots de fase", stats.phase_slots ?? 0],
-    ["colisão exata máx.", stats.max_exact_collisions ?? 0],
+    ["buckets", stats.occupied_buckets ?? 0],
+    ["carga", Number(stats.load_factor ?? 0).toFixed(5)],
+    ["fases", stats.phase_slots ?? 0],
   ];
   for (const item of entries) root.appendChild(metric(...item));
+}
+
+function renderCapabilities(observation) {
+  const root = $("#capabilities");
+  root.replaceChildren();
+  for (const [name, capability] of Object.entries(observation.capabilities ?? {})) {
+    const row = document.createElement("div");
+    row.className = `capability ${capability.available ? "available" : "unavailable"}`;
+    const label = document.createElement("span");
+    label.textContent = name.replaceAll("_", " ");
+    const state = document.createElement("small");
+    state.textContent = capability.available ? "disponível" : "aguarda contrato público";
+    if (capability.reason) state.title = capability.reason;
+    row.append(label, state);
+    root.appendChild(row);
+  }
 }
 
 function showNode(node, group) {
@@ -63,9 +78,7 @@ function renderMap(nodes, stats) {
   const maxRadius = 285;
   const bucketCount = Math.max(Number(stats.bucket_count ?? 1), 1);
 
-  for (const r of [72, 142, 214, 285]) {
-    map.appendChild(svg("circle", { cx, cy, r, class: "orbit" }));
-  }
+  for (const r of [72, 142, 214, 285]) map.appendChild(svg("circle", { cx, cy, r, class: "orbit" }));
   map.appendChild(svg("line", { x1: 120, y1: cy, x2: 980, y2: cy, class: "axis" }));
   map.appendChild(svg("line", { x1: cx, y1: 40, x2: cx, y2: 650, class: "axis" }));
   map.appendChild(svg("circle", { cx, cy, r: 4, fill: "rgba(159,240,207,.92)" }));
@@ -92,8 +105,6 @@ function renderMap(nodes, stats) {
     });
     map.appendChild(group);
   }
-
-  $("#result-count").textContent = `${nodes.length} estados visíveis`;
 }
 
 function matches(node, query) {
@@ -107,18 +118,22 @@ function matches(node, query) {
 function applySearch() {
   if (!snapshotCache) return;
   const query = $("#search").value.trim();
-  const filtered = snapshotCache.nodes.filter((node) => matches(node, query));
-  renderMap(filtered, snapshotCache.statistics);
+  renderMap(snapshotCache.nodes.filter((node) => matches(node, query)), snapshotCache.statistics);
 }
 
 async function start() {
   try {
-    const health = await fetch("/api/health", { cache: "no-store" }).then((r) => r.json());
+    const [health, snapshot, observation] = await Promise.all([
+      fetch("/api/health", { cache: "no-store" }).then((r) => r.json()),
+      fetch("/api/snapshot", { cache: "no-store" }).then((r) => r.json()),
+      fetch("/api/observation", { cache: "no-store" }).then((r) => r.json()),
+    ]);
     $("#health").textContent = health.status === "ok" ? "BDR conectado" : "estado desconhecido";
-    snapshotCache = await fetch("/api/snapshot", { cache: "no-store" }).then((r) => r.json());
-    $("#version").textContent = `BDR ${snapshotCache.bdr_version}`;
-    renderMetrics(snapshotCache.statistics);
-    renderMap(snapshotCache.nodes, snapshotCache.statistics);
+    snapshotCache = snapshot;
+    $("#version").textContent = `BDR ${snapshot.bdr_version}`;
+    renderMetrics(snapshot.statistics);
+    renderCapabilities(observation);
+    renderMap(snapshot.nodes, snapshot.statistics);
     $("#search").addEventListener("input", applySearch);
   } catch (error) {
     $("#health").textContent = "falha de conexão";
