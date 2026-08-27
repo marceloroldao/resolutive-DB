@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Resolutive DB Explorer</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">BANCO DE DADOS RESOLUTIVO</p>
+      <h1>Resolutive DB Explorer</h1>
+    </div>
+    <div class="status"><span class="status-dot"></span><span id="health">conectando</span></div>
+  </header>
+
+  <main>
+    <section class="metrics" id="metrics"></section>
+
+    <section class="workspace">
+      <article class="panel map-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">ONTOLOGIA VISUAL</p>
+            <h2>Espaço resolutivo</h2>
+          </div>
+          <p class="hint">ρR → raio · θ → ângulo · fν → escala</p>
+        </div>
+        <div class="canvas-wrap">
+          <svg id="map" viewBox="0 0 900 620" role="img" aria-label="Mapa resolutivo"></svg>
+          <div class="legend">
+            <span>Centro</span>
+            <span>densidade/endereço ρR</span>
+            <span>periferia</span>
+          </div>
+        </div>
+      </article>
+
+      <aside class="panel inspector">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">INSPEÇÃO</p>
+            <h2>Nódulo</h2>
+          </div>
+        </div>
+        <div id="inspector-empty" class="empty-state">Selecione um nódulo no mapa.</div>
+        <dl id="inspector" hidden></dl>
+      </aside>
+    </section>
+  </main>
+
+  <footer>
+    <span id="version">BDR</span>
+    <span>Explorer v0.1 · somente leitura</span>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>
