@@ -60,7 +60,8 @@ target_link_libraries(v1_compat_candidate PRIVATE bdr_v1_candidate)
 add_executable(v1_compat_fallback test_v1_cross_compat.cpp)
 target_link_libraries(v1_compat_fallback PRIVATE bdr_v1_fallback)
 
-# Install/export only the v1 candidate surface. Baseline and fallback stay internal.
+# Install/export only the v1 candidate surface. Baseline, fallback and internal
+# index headers stay implementation-private; database.hpp is the frozen public API.
 install(TARGETS bdr_v1_candidate
     EXPORT bdrTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -68,7 +69,7 @@ install(TARGETS bdr_v1_candidate
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
-install(DIRECTORY include/bdr DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES include/bdr/database.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/bdr)
 install(EXPORT bdrTargets
     FILE bdrTargets.cmake
     NAMESPACE bdr::
