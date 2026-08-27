@@ -19,6 +19,7 @@ rc_release_notes_path = root / 'RELEASE_NOTES_v0.2.0-rc1.md'
 v1_release_notes_path = root / 'RELEASE_NOTES_v1.0.0.md'
 v11_release_notes_path = root / 'RELEASE_NOTES_v1.1.0.md'
 
+software_doi = '10.5281/zenodo.22130421'
 previous_software_doi = '10.5281/zenodo.22120246'
 preprint_doi = '10.5281/zenodo.21937842'
 
@@ -35,10 +36,11 @@ for needle in [
     'version: "1.1.0"',
     'repository-code: "https://github.com/marceloroldao/resolutive-DB"',
     'url: "https://github.com/marceloroldao/resolutive-DB/releases/tag/v1.1.0"',
+    f'doi: "{software_doi}"',
     f'doi: "{preprint_doi}"',
 ]:
     if needle not in citation:
-        errors.append(f'CITATION.cff v1.1 staging metadata missing: {needle}')
+        errors.append(f'CITATION.cff published v1.1 metadata missing: {needle}')
 
 for forbidden in [
     f'doi: "{previous_software_doi}"',
@@ -61,6 +63,8 @@ if '__version__ = "1.1.0"' not in root_init:
 if zenodo.get('version') != '1.1.0':
     errors.append(f'.zenodo.json version is not 1.1.0: {zenodo.get("version")!r}')
 related = zenodo.get('related_identifiers') or []
+if not any(x.get('identifier') == software_doi and x.get('relation') == 'isIdenticalTo' for x in related):
+    errors.append('.zenodo.json does not identify the definitive v1.1.0 software DOI')
 if not any(x.get('identifier') == previous_software_doi and x.get('relation') == 'isNewVersionOf' for x in related):
     errors.append('.zenodo.json does not relate v1.1.0 to the published v1.0.0 DOI with isNewVersionOf')
 if not any(x.get('identifier') == preprint_doi for x in related):
@@ -85,20 +89,20 @@ if not v11_release_notes_path.exists():
     errors.append('RELEASE_NOTES_v1.1.0.md is missing.')
 else:
     notes_text = v11_release_notes_path.read_text(encoding='utf-8')
-    for needle in ['publication ready / tag pending', 'V112 Memoria Atomic Benchmark', 'V100 Evidence Closure']:
+    for needle in ['V112 Memoria Atomic Benchmark', 'V100 Evidence Closure']:
         if needle not in notes_text:
             errors.append(f'RELEASE_NOTES_v1.1.0.md missing publication evidence: {needle}')
 
-notes.append('v1.1.0 publication metadata is staged without a predeclared v1.1 software DOI.')
-notes.append(f'Published v1.0.0 software DOI {previous_software_doi} is retained only as prior-version provenance.')
-notes.append('The associated scientific preprint DOI remains unchanged and real.')
+notes.append(f'BDR v1.1.0 definitive software DOI is {software_doi}.')
+notes.append(f'Published v1.0.0 software DOI {previous_software_doi} is retained as prior-version provenance.')
+notes.append('The associated scientific preprint DOI remains unchanged.')
 
 result = {
-    'schema': 6,
+    'schema': 7,
     'release_metadata_ready': not errors,
     'publication_target': '1.1.0',
-    'publication_state': 'publication-ready-tag-pending',
-    'software_doi': None,
+    'publication_state': 'released',
+    'software_doi': software_doi,
     'previous_software_doi': previous_software_doi,
     'historical_rc_integration_preserved': historical_rc_intact,
     'root_package': {'name': root_name, 'version': root_version},
