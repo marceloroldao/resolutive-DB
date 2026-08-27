@@ -1,0 +1,39 @@
+name: V107 Integrated Candidate
+
+on:
+  push:
+    branches: ["develop/v1.1.0"]
+    paths:
+      - "experimental/api_v107/**"
+      - "experimental/api_v106/**"
+      - "experimental/api_v105/**"
+      - "experimental/api_v104/**"
+      - "experimental/api_v103/**"
+      - "experimental/api_v102/**"
+      - "experimental/api_v101/**"
+      - "experimental/api_v86/**"
+      - ".github/workflows/v107-integrated.yml"
+  pull_request:
+    paths:
+      - "experimental/api_v107/**"
+      - "experimental/api_v106/**"
+      - "experimental/api_v105/**"
+      - "experimental/api_v104/**"
+      - "experimental/api_v103/**"
+      - "experimental/api_v102/**"
+      - "experimental/api_v101/**"
+      - "experimental/api_v86/**"
+
+jobs:
+  integrated:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ zlib1g-dev
+      - name: Configure
+        run: cmake -S experimental/api_v107 -B build/v107 -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build/v107 --parallel 2
+      - name: Test integrated candidate
+        run: ctest --test-dir build/v107 --output-on-failure
