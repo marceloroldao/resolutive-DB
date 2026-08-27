@@ -1,7 +1,7 @@
 {
   "title": "Banco de Dados Resolutivo (BDR) / Resolutive Database Engine",
   "version": "1.0.0",
-  "description": "BDR v1.0.0 is the first stable-engine line of the Resolutive Database Engine. It provides a frozen public C++ source API, the bdr::bdr CMake consumer target, CompactIndex as the preferred internal index, BDR3 snapshots, BDW3 write-ahead logs, streaming checkpoints, crash recovery, and reproducible high-cardinality validation. Performance claims remain workload-specific and the project does not claim strict worst-case O(1) complexity for the complete engine. The associated scientific preprint is a separate Zenodo publication with DOI 10.5281/zenodo.21937842.",
+  "description": "BDR v1.0.0 is the first stable-engine line of the Resolutive Database Engine. It provides a frozen public C++ source API, the bdr::bdr CMake consumer target, CompactIndex as the preferred internal index, BDR3 snapshots, BDW3 write-ahead logs, streaming checkpoints, crash recovery, and reproducible high-cardinality validation. Performance claims remain workload-specific and the project does not claim strict worst-case O(1) complexity for the complete engine. Software release DOI: 10.5281/zenodo.22120246. The associated scientific preprint is a separate Zenodo publication with DOI 10.5281/zenodo.21937842.",
   "creators": [
     {
       "name": "Matos, Marcelo Roldão",
@@ -25,6 +25,11 @@
     "reproducible research"
   ],
   "related_identifiers": [
+    {
+      "identifier": "10.5281/zenodo.22120246",
+      "relation": "isIdenticalTo",
+      "resource_type": "software"
+    },
     {
       "identifier": "10.5281/zenodo.21937842",
       "relation": "isSupplementTo",
