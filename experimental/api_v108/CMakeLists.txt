@@ -9,7 +9,7 @@ find_package(ZLIB REQUIRED)
 find_package(Threads REQUIRED)
 
 add_library(v108_candidate STATIC
-    ../api_v107/candidate_database.cpp
+    ../api_v107/integrated_database.cpp
     ../api_v106/migration.cpp
     ../api_v102/file_wal.cpp
     ../api_v101/atomic_wal.cpp
