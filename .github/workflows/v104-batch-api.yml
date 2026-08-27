@@ -1,0 +1,27 @@
+name: V104 Batch API
+
+on:
+  push:
+    branches:
+      - develop/v1.1.0
+  pull_request:
+    paths:
+      - 'experimental/api_v104/**'
+      - 'experimental/api_v103/**'
+      - 'experimental/api_v102/**'
+      - 'experimental/api_v101/**'
+      - '.github/workflows/v104-batch-api.yml'
+
+jobs:
+  batch-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ zlib1g-dev
+      - name: Configure
+        run: cmake -S experimental/api_v104 -B build-v104 -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build-v104 -j2
+      - name: Test write_batch and bulk helpers
+        run: ctest --test-dir build-v104 --output-on-failure
