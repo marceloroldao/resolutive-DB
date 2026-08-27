@@ -1,10 +1,10 @@
-# BDR v1 — Pre-Promotion Repository Audit
+# BDR v1 — Clean Promotion Repository Audit
 
-Status: **internal candidate / pre-promotion audit**. This document does not release or publish v1.
+Status: **clean promotion candidate / technical review**. This document does not release or publish v1.
 
 ## Scope
 
-This audit records the repository state before any future v1 promotion. Historical public-release metadata must remain historical until v1 is explicitly approved.
+This audit records the repository state before any future v1 promotion to `main`. Historical public-release metadata must remain historical until v1 is explicitly approved.
 
 ## Licensing — PASS
 
@@ -17,7 +17,7 @@ This audit records the repository state before any future v1 promotion. Historic
 
 ## Current public-release metadata — PASS / PRESERVE
 
-The following files correctly describe the current published line `v0.2.0-rc1` and must not be rewritten to v1 before promotion:
+The following files correctly describe the current published line `v0.2.0-rc1` and must not be rewritten to v1 before actual promotion:
 
 - `README.md`
 - `CITATION.cff`
@@ -26,14 +26,16 @@ The following files correctly describe the current published line `v0.2.0-rc1` a
 - `RELEASE_NOTES_v0.2.0-rc1.md`
 - `docs/release/v0.2.0-rc1-evidence.md`
 
-This is intentional historical/public state, not stale data to be silently changed during internal v1 development.
+This is intentional historical/public state, not stale data to be silently changed during v1 preparation.
 
-## v1 internal governance — PASS
+## v1 clean-promotion governance — PASS
 
-- v1 work remains on `internal/v1-candidate`.
-- v1 readiness documentation explicitly says internal candidate only.
-- no v1 release tag, DOI or public release metadata is introduced by the internal candidate work.
+- promotion work is isolated on `promotion/v1-clean`, created directly from `main`.
+- the experimental/internal ~99-commit history is not being bulk-merged.
+- the clean branch carries only the proven v1 subset plus its validation/docs.
+- no v1 release tag, DOI or public release metadata is introduced by the clean promotion work.
 - the preserved baseline implementation remains available.
+- no merge into `main` is authorized by this audit.
 
 ## v1 API/package state — PASS
 
@@ -48,23 +50,69 @@ This is intentional historical/public state, not stale data to be silently chang
 - BDR3 snapshot format preserved.
 - BDW3 WAL format preserved.
 - four-direction cross-version persistence compatibility passes.
-- 12 checkpoint crash-boundary failpoints pass on candidate and fallback.
+- 12 checkpoint crash-boundary failpoints pass.
 - repeated checkpoint/reopen churn passes on candidate and fallback.
+- clean promotion CI runs 200 checkpoint/reopen cycles on both candidate and fallback.
+
+## Long soak — PASS
+
+The materialized `database_v1.cpp` completed the 50M mutation campaign successfully:
+
+- operations: 50,000,000
+- cycles: 5,000
+- final records: 77,749
+- elapsed wall time: 24:43.33
+- peak RSS: 47,552 KB
+- swaps: 0
+- exit status: 0
+
+The scale gate reported PASS and GitHub Actions uploaded the soak evidence artifact.
 
 ## Resource state — PASS
 
-The materialized candidate has a fixed 1M-record CI gate requiring:
+Resource acceptance is evaluated comparatively on the same hosted runner to avoid treating runner-to-runner RSS variation as an engine regression.
 
-- peak RSS <= 330,000 KB;
-- persistent footprint <= 55,000,000 bytes;
-- exactly 1,000,000 records;
-- zero swap.
+Latest clean paired 1M-record evidence:
 
-The gate is based on measured candidate evidence rather than hosted-runner timing.
+- candidate RSS: 279,156 KB
+- fallback RSS: 347,256 KB
+- candidate disk: 53,777,840 bytes
+- fallback disk: 53,777,840 bytes
+- records: exactly 1,000,000 in both paths
+- swaps: 0 in both paths
+
+The clean CI requires:
+
+- exact 1,000,000-record cardinality in both paths;
+- zero swap in both paths;
+- candidate persistent footprint <= 55,000,000 bytes;
+- identical candidate/fallback persistent footprint;
+- candidate to retain at least a 5% same-runner RSS advantage over fallback.
+
+The latest clean run retained about a 19.6% RSS advantage and passed the gate.
+
+## Clean branch CI — PASS
+
+The latest complete clean-promotion validation closed green for:
+
+- public API lock;
+- native CMake build and CTest contract suite;
+- four-direction persistence compatibility;
+- installed-package external consumer;
+- checkpoint crash-boundary gate;
+- paired candidate/fallback resource gate;
+- 200-cycle checkpoint/reopen churn on candidate;
+- 200-cycle checkpoint/reopen churn on fallback.
+
+The 50M soak is not repeated on every push; it is a manual expensive gate and has already passed against the byte-identical materialized v1 engine source.
+
+## Current clean diff — PASS
+
+At the last audit, `promotion/v1-clean` was ahead of `main` by six commits and changed/added only the v1 core/package/test/documentation subset. The branch does not contain the broad v0.3 workflow/ablation history that exists in the internal experimental line.
 
 ## Promotion-only changes — HOLD
 
-Only after the internal v1 candidate is approved should the release-closing commit update:
+Only after explicit approval to promote v1 should the release-closing work update:
 
 1. `README.md` current release/status section;
 2. `CITATION.cff` version/date/release URL/DOI;
@@ -76,6 +124,6 @@ Only after the internal v1 candidate is approved should the release-closing comm
 
 The DOI field must not be invented. It should be inserted only from the actual publication/release record.
 
-## Remaining technical hold
+## Technical conclusion
 
-The materialized 50M mutation soak against `database_v1.cpp` must complete successfully before the candidate can be considered technically closed for v1 promotion.
+The clean promotion subset is technically closed for review based on the recorded gates. This audit does **not** authorize a merge, tag, release, DOI, or publication. Those remain explicit future decisions.
