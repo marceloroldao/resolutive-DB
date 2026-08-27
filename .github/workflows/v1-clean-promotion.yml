@@ -79,6 +79,36 @@ jobs:
       - name: Run external consumer
         run: build/consumer/bdr_v1_package_consumer
 
+  checkpoint-churn:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [candidate, fallback]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Build churn gate
+        shell: bash
+        run: |
+          if [ "${{ matrix.mode }}" = "candidate" ]; then
+            g++ -std=c++17 -O2 -pthread -Iexperimental/api_v86/include \
+              experimental/api_v86/test_v1_checkpoint_churn.cpp \
+              experimental/api_v86/src/database_v1.cpp -lz -o v1_churn
+          else
+            g++ -std=c++17 -O2 -pthread -DBDR_V1_FALLBACK_INDEX -Iexperimental/api_v86/include \
+              experimental/api_v86/test_v1_checkpoint_churn.cpp \
+              experimental/api_v86/src/database_v1.cpp \
+              experimental/api_v86/src/resolutive_index.cpp -lz -o v1_churn
+          fi
+      - name: Run 200-cycle checkpoint/reopen churn
+        env:
+          BDR_V1_CHURN_CYCLES: "200"
+          BDR_V1_CHURN_OPS_PER_CYCLE: "10000"
+          BDR_V1_CHURN_KEY_SPACE: "50000"
+        run: /usr/bin/time -v ./v1_churn
+
   crash-and-resource:
     runs-on: ubuntu-24.04
     steps:
@@ -132,7 +162,6 @@ jobs:
           test "$f_swaps" = "0"
           test "$c_disk" -le 55000000
           test "$c_disk" = "$f_disk"
-          # Same-runner relative gate: candidate must retain at least a 5% RSS advantage.
           test $((c_rss * 100)) -le $((f_rss * 95))
 
   soak-50m:
