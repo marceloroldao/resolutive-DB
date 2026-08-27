@@ -1,13 +1,13 @@
 # BDR v1.1.0 Release Checklist
 
-Status: internal RC staging checklist.
+Status: publication finalization / tag pending.
 
 ## Baseline protection
 
 - [x] Published `v1.0.0` tag remains immutable.
-- [x] `main` remains untouched by v1.1 development.
-- [x] Development is isolated in `develop/v1.1.0` / PR #11.
-- [x] PR #11 remains draft during staging.
+- [x] v1.1 development was isolated in `develop/v1.1.0` / PR #11.
+- [x] PR #11 remained draft during internal staging and was promoted only after required gates passed.
+- [x] Validated v1.1 candidate was intentionally merged into `main`.
 
 ## Public compatibility
 
@@ -50,20 +50,24 @@ Status: internal RC staging checklist.
 
 ## Release metadata and documentation
 
-- [x] Root CMake project version staged as `1.1.0` on development branch.
-- [x] `CHANGELOG.md` contains unreleased v1.1 entry.
+- [x] Root CMake project version is `1.1.0`.
+- [x] Root Python package and `bdr.__version__` are staged as `1.1.0`.
+- [x] `CHANGELOG.md` contains final/publication-ready v1.1 entry.
 - [x] `docs/V1_1_PUBLIC_API.md` documents compatibility and durability semantics.
-- [x] `RELEASE_NOTES_v1.1.0.md` staged.
-- [x] No invented/predeclared DOI.
-- [x] No v1.1 tag or GitHub Release created during internal staging.
+- [x] `RELEASE_NOTES_v1.1.0.md` finalized for publication staging.
+- [x] `README.md`, `CITATION.cff`, and `.zenodo.json` staged for v1.1.0.
+- [x] No invented/predeclared v1.1.0 DOI.
 
 ## Final promotion gates
 
-- [ ] Final PR diff/audit completed with no accidental unrelated changes.
-- [ ] Latest PR head has all required CI gates green after final documentation changes.
-- [ ] PR #11 intentionally moved out of draft only when ready for promotion.
-- [ ] Merge into `main` performed only after explicit release decision.
-- [ ] `v1.1.0` tag and GitHub Release created only after merge/audit.
-- [ ] Publication metadata/DOI updated only with the identifier actually returned by the publication service.
+- [x] Final development PR diff/audit completed with no accidental unrelated changes.
+- [x] Development PR head had required CI gates green after final documentation changes.
+- [x] PR #11 intentionally moved out of draft only when ready for promotion.
+- [x] Merge into `main` performed after explicit release decision.
+- [x] Post-merge BDR CI on `main` passed (Python 3.11/3.12, C++ compile/smoke, SQLite parity).
+- [ ] Final publication-metadata PR passes BDR CI, V99 and V100 with v1.1-aware audits.
+- [ ] Final publication-metadata PR merged into `main`.
+- [ ] `v1.1.0` tag and GitHub Release created from the final validated `main` commit.
+- [ ] Definitive v1.1.0 software DOI recorded only after the publication service returns it.
 
-Until every final-promotion item is checked, v1.1.0 remains an internal release candidate and v1.0.0 remains the released stable baseline.
+Until the remaining publication gates are checked, v1.1.0 is publication-ready but not yet tagged/published.

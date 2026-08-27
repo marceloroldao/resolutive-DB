@@ -1,7 +1,7 @@
 {
   "title": "Banco de Dados Resolutivo (BDR) / Resolutive Database Engine",
-  "version": "1.0.0",
-  "description": "BDR v1.0.0 is the first stable-engine line of the Resolutive Database Engine. It provides a frozen public C++ source API, the bdr::bdr CMake consumer target, CompactIndex as the preferred internal index, BDR3 snapshots, BDW3 write-ahead logs, streaming checkpoints, crash recovery, and reproducible high-cardinality validation. Performance claims remain workload-specific and the project does not claim strict worst-case O(1) complexity for the complete engine. Software release DOI: 10.5281/zenodo.22120246. The associated scientific preprint is a separate Zenodo publication with DOI 10.5281/zenodo.21937842.",
+  "version": "1.1.0",
+  "description": "BDR v1.1.0 extends the stable v1 line with an additive atomic logical-write path for Memoria.ia integration. It preserves the existing bdr::Database source contract and BDR3/BDW3 readers while adding bdr::AtomicDatabase, atomic write_batch/put_many/erase_many operations, explicit durability modes, and the versioned BDW4 write-ahead log with all-or-nothing crash recovery. Performance claims remain workload-specific and the project does not claim strict worst-case O(1) complexity for the complete engine. The associated scientific preprint is a separate Zenodo publication with DOI 10.5281/zenodo.21937842.",
   "creators": [
     {
       "name": "Matos, Marcelo Roldão",
@@ -14,20 +14,21 @@
   "keywords": [
     "Resolutive Database",
     "BDR",
+    "Memoria.ia",
+    "atomic batch",
+    "BDW4",
     "key-value database",
     "persistent storage",
     "write-ahead log",
     "crash recovery",
     "C++ API",
     "CMake",
-    "adaptive partitioning",
-    "benchmarking",
     "reproducible research"
   ],
   "related_identifiers": [
     {
       "identifier": "10.5281/zenodo.22120246",
-      "relation": "isIdenticalTo",
+      "relation": "isNewVersionOf",
       "resource_type": "software"
     },
     {
@@ -36,5 +37,5 @@
       "resource_type": "publication-preprint"
     }
   ],
-  "notes": "SOFTWARE LICENSE: BDR Academic and Non-Commercial Research License v1.0 (see repository LICENSE). Academic, educational and non-commercial research use is permitted under its terms. Commercial use, production deployment, proprietary integration, SaaS and monetized use require a separate written commercial license from ETBRA Tecnologias. No patent license is granted. The CC BY-NC-SA 4.0 license applies only to the separate scientific preprint DOI 10.5281/zenodo.21937842 and does not apply to this software release. This software is source-available and is not represented as OSI-approved open source."
+  "notes": "SOFTWARE LICENSE: BDR Academic and Non-Commercial Research License v1.0 (see repository LICENSE). Academic, educational and non-commercial research use is permitted under its terms. Commercial use, production deployment, proprietary integration, SaaS and monetized use require a separate written commercial license from ETBRA Tecnologias. No patent license is granted. The CC BY-NC-SA 4.0 license applies only to the separate scientific preprint DOI 10.5281/zenodo.21937842 and does not apply to this software release. This software is source-available and is not represented as OSI-approved open source. The definitive v1.1.0 software DOI will be recorded only after the publication service assigns it."
 }

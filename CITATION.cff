@@ -1,33 +1,34 @@
 cff-version: 1.2.0
-message: "If you use BDR v1.0.0, please cite this software release and the associated scientific preprint where appropriate."
+message: "If you use BDR v1.1.0, please cite this software release and the associated scientific preprint where appropriate."
 title: "Banco de Dados Resolutivo (BDR) / Resolutive Database Engine"
-version: "1.0.0"
+version: "1.1.0"
 type: software
 authors:
   - family-names: "Matos"
     given-names: "Marcelo Roldão"
     orcid: "https://orcid.org/0009-0003-6075-4680"
 repository-code: "https://github.com/marceloroldao/resolutive-DB"
-url: "https://github.com/marceloroldao/resolutive-DB/releases/tag/v1.0.0"
-doi: "10.5281/zenodo.22120246"
+url: "https://github.com/marceloroldao/resolutive-DB/releases/tag/v1.1.0"
 abstract: >-
-  BDR v1.0.0 is the first stable-engine line of the Resolutive Database Engine,
-  providing a frozen public C++ source API, the bdr::bdr CMake consumer target,
-  CompactIndex as the preferred internal index, BDR3 snapshots, BDW3 write-ahead
-  logs, streaming checkpoints, crash recovery, and reproducible validation at
-  high cardinality. Performance claims remain workload-specific and the project
-  does not claim strict worst-case O(1) complexity for the complete engine.
+  BDR v1.1.0 extends the stable v1 line with an additive atomic logical-write
+  path for Memoria.ia integration. It preserves the existing bdr::Database
+  source contract and BDR3/BDW3 readers while adding bdr::AtomicDatabase,
+  atomic write_batch/put_many/erase_many operations, explicit durability modes,
+  and the versioned BDW4 write-ahead log with all-or-nothing crash recovery.
+  Performance claims remain workload-specific and the project does not claim
+  strict worst-case O(1) complexity for the complete engine.
 keywords:
   - resolutive database
   - BDR
+  - Memoria.ia
+  - atomic batch
+  - BDW4
   - key-value database
   - persistent storage
   - write-ahead log
   - crash recovery
   - C++ API
   - CMake
-  - adaptive partitioning
-  - benchmarking
   - reproducible research
 license: other
 preferred-citation:

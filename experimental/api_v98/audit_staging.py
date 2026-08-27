@@ -8,7 +8,7 @@ staging = root / 'experimental/api_v98'
 
 errors = []
 notes = []
-software_doi = '10.5281/zenodo.22120246'
+previous_software_doi = '10.5281/zenodo.22120246'
 
 def require_text(path, needle):
     p = root / path
@@ -19,6 +19,7 @@ def require_text(path, needle):
     if needle not in text:
         errors.append(f'{path}: missing {needle!r}')
 
+# Historical staging evidence remains historical and unchanged.
 require_text('experimental/api_v98/RC_STAGING.md', 'NOT RELEASED / NOT TAGGED / NOT PUBLISHED')
 require_text('experimental/api_v98/RELEASE_NOTES_v0.2.0-rc1_DRAFT.md', 'Draft only. Not released.')
 notes.append('Pre-publication V98 staging documents are historical evidence, not statements of current release status.')
@@ -27,22 +28,32 @@ require_text('LICENSE', 'BDR ACADEMIC AND NON-COMMERCIAL RESEARCH LICENSE v1.0')
 require_text('LICENSE', 'Commercial Use Prohibited Without Separate License')
 require_text('LICENSE', 'No Patent License')
 
-require_text('CITATION.cff', 'version: "1.0.0"')
-require_text('CITATION.cff', f'doi: "{software_doi}"')
+require_text('CITATION.cff', 'version: "1.1.0"')
+require_text('CITATION.cff', 'releases/tag/v1.1.0')
 require_text('CITATION.cff', '10.5281/zenodo.21937842')
-require_text('RELEASE_NOTES_v1.0.0.md', '50,000,000-operation materialized soak: PASS')
-require_text('CHANGELOG.md', '1.0.0 — Final / Publication Ready')
-require_text('README.md', 'BDR v1.0.0 — Released')
-require_text('README.md', software_doi)
+require_text('RELEASE_NOTES_v1.1.0.md', 'publication ready / tag pending')
+require_text('RELEASE_NOTES_v1.1.0.md', 'V112 Memoria Atomic Benchmark')
+require_text('CHANGELOG.md', '1.1.0 — Final / Publication Ready')
+require_text('README.md', 'BDR v1.1.0 — Publication Ready / Tag Pending')
+require_text('README.md', previous_software_doi)
+require_text('pyproject.toml', 'version = "1.1.0"')
+require_text('bdr/__init__.py', '__version__ = "1.1.0"')
 
 citation = (root / 'CITATION.cff').read_text(encoding='utf-8')
 for forbidden in [
-    'version: "0.2.0-rc1"',
+    f'doi: "{previous_software_doi}"',
     'doi: "10.5281/zenodo.22074886"',
-    'releases/tag/0.2.0-rc1',
+    'version: "1.0.0"',
+    'version: "0.2.0-rc1"',
 ]:
     if forbidden in citation:
-        errors.append(f'CITATION.cff still contains superseded software-release metadata: {forbidden}')
+        errors.append(f'CITATION.cff contains stale/current-version software metadata: {forbidden}')
+
+zenodo = json.loads((root / '.zenodo.json').read_text(encoding='utf-8'))
+if zenodo.get('version') != '1.1.0':
+    errors.append('.zenodo.json is not staged for version 1.1.0')
+if not any(x.get('identifier') == previous_software_doi and x.get('relation') == 'isNewVersionOf' for x in zenodo.get('related_identifiers', [])):
+    errors.append('.zenodo.json does not identify v1.0.0 as the prior software version')
 
 manifest_path = root / 'v96_out/final_manifest.json'
 if manifest_path.exists():
@@ -56,16 +67,17 @@ else:
     candidate = False
 
 out = {
-    'schema': 4,
+    'schema': 5,
     'historical_staging_version': '0.2.0-rc1',
-    'published_software_baseline': '0.2.0-rc1',
-    'publication_target': '1.0.0',
-    'publication_state': 'released',
-    'software_doi': software_doi,
+    'previous_released_version': '1.0.0',
+    'publication_target': '1.1.0',
+    'publication_state': 'publication-ready-tag-pending',
+    'software_doi': None,
+    'previous_software_doi': previous_software_doi,
     'candidate_evidence_present': manifest_path.exists(),
     'candidate': candidate,
     'staging_history_preserved': True,
-    'v1_publication_metadata_staged': True,
+    'v11_publication_metadata_staged': True,
     'staging_safe': not errors,
     'notes': notes,
     'errors': errors,

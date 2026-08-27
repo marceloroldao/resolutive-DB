@@ -1,70 +1,90 @@
 # Banco de Dados Resolutivo (BDR)
 
-**Current stable-engine line: BDR v1.0.0 — Released**
+**Current stable-engine line: BDR v1.1.0 — Publication Ready / Tag Pending**
 
-**Software DOI (v1.0.0):** 10.5281/zenodo.22120246  
+**Latest published software DOI (v1.0.0):** 10.5281/zenodo.22120246  
 **Previous software DOI (v0.2.0-rc1):** 10.5281/zenodo.22074886  
 **Historical software DOI (v0.1.0):** 10.5281/zenodo.21938148  
 **Scientific preprint DOI:** 10.5281/zenodo.21937842
 
 Projeto da **ETBRA Tecnologias** para investigar e desenvolver um mecanismo de armazenamento persistente e endereçamento resolutivo determinístico, com particionamento local, integração nativa e recuperação transacional.
 
-> **Status de engenharia:** v1.0.0 é a primeira linha de motor estável do BDR. A árvore técnica foi validada, congelada e publicada. O projeto não reivindica complexidade O(1) estrita no pior caso para o motor completo; resultados de desempenho permanecem específicos ao workload e ao ambiente de teste.
+> **Status de engenharia:** v1.1.0 é a evolução compatível da linha estável v1, adicionando batches lógicos atômicos em BDW4 para requisitos de persistência da Memoria.ia. A árvore técnica foi integrada e validada; tag, GitHub Release e DOI específico da v1.1.0 ainda não foram criados. O projeto não reivindica complexidade O(1) estrita no pior caso para o motor completo; resultados de desempenho permanecem específicos ao workload e ao ambiente de teste.
 
-## Estado atual — v1.0.0
+## Estado atual — v1.1.0
 
-A v1.0.0 consolida:
+A v1.1.0 preserva a superfície `bdr::Database` da v1.0 e acrescenta, de forma opt-in:
 
-- core C++ persistente validado;
-- `CompactIndex` como índice interno preferencial;
-- `ResolutiveIndex` preservado como fallback interno de regressão;
-- API pública C++ congelada em `database.hpp`;
-- target CMake estável `bdr::bdr` para consumidores externos;
-- entry point CMake na raiz do repositório;
-- BDR3 para snapshots/checkpoints;
-- BDW3 para write-ahead log;
-- streaming checkpoint validado;
-- recuperação de torn-tail WAL;
-- compatibilidade de persistência em quatro direções entre baseline, candidato e fallback;
-- 12 failpoints determinísticos de crash durante checkpoint;
-- 200 ciclos checkpoint/reopen com 2.000.000 de operações;
-- soak materializado de 50.000.000 de operações;
-- validações V99 e V100 concluídas;
-- pacote raiz versionado como `1.0.0`.
+- API pública `bdr::AtomicDatabase` em `bdr/atomic_database.hpp`;
+- `write_batch`, `put_many` e `erase_many`;
+- atomicidade all-or-nothing para múltiplos registros físicos de uma operação lógica;
+- modos de durabilidade `Async`, `BatchSync` e `PerOperationSync`;
+- `last_sequence()` e `durable_sequence()`;
+- BDW4 como WAL explicitamente versionado para batches atômicos;
+- recuperação de tail BDW4 incompleto até o último boundary válido;
+- ordenação monotônica sob produtores concorrentes;
+- migração side-by-side de BDR3/BDW3 sem reescrever arquivos legados;
+- compatibilidade do target CMake `bdr::bdr` e de consumidores v1.0;
+- validações V101–V112, V99 e V100 concluídas.
 
-Consulte `RELEASE_NOTES_v1.0.0.md`, `docs/V1_PUBLIC_API.md`, `docs/V1_FINAL_AUDIT.md` e `docs/V1_RELEASE_CHECKLIST.md`.
+A v1.0.0 permanece uma baseline publicada e imutável. Consulte `RELEASE_NOTES_v1.1.0.md`, `docs/V1_1_PUBLIC_API.md` e `docs/V1_1_RELEASE_CHECKLIST.md`.
 
 ## Compatibilidade de dados
 
-A v1 preserva:
+A linha v1.1 preserva leitura dos formatos da v1.0:
 
-- **BDR3** para snapshots/checkpoints;
-- **BDW3** para segmentos de write-ahead log.
+- **BDR3** — snapshots/checkpoints legados;
+- **BDW3** — write-ahead log legado;
+- **BDW4** — novo framing atômico aditivo da v1.1.
 
-Mudanças futuras incompatíveis de formato devem introduzir versão/magic explícitos e documentação de migração.
+A migração é side-by-side: BDR3/BDW3 existentes permanecem inalterados e novas mutações atômicas são gravadas em BDW4.
 
 ## Integração C++
 
-O contrato de distribuição suportado pela v1 é o pacote CMake estático com target:
+O target público continua sendo:
 
 ```cmake
 find_package(bdr CONFIG REQUIRED)
 target_link_libraries(my_app PRIVATE bdr::bdr)
 ```
 
-A API pública de fonte está congelada em `database.hpp`. Headers dos índices internos não fazem parte do contrato público.
+Consumidores existentes podem continuar usando:
+
+```cpp
+#include <bdr/database.hpp>
+```
+
+Para batches lógicos atômicos da v1.1:
+
+```cpp
+#include <bdr/atomic_database.hpp>
+```
+
+A extensão é aditiva; a superfície `bdr::Database` da v1.0 permanece suportada.
 
 ## API Python
 
-O pacote raiz `resolutive-db` está versionado como `1.0.0` e preserva a API Python existente:
+O pacote raiz `resolutive-db` está versionado como `1.1.0` e preserva a API Python existente:
 
 ```python
 from bdr import PersistentBDR
-
-# Use a API pública conforme os exemplos e testes do repositório.
 ```
 
-Experimentos históricos em `experimental/` permanecem preservados como evidência de desenvolvimento e não devem ser confundidos com o contrato público congelado da v1.
+A nova API atômica validada nesta release é uma superfície C++ opt-in; v1.1.0 não declara um novo contrato de bindings Python para `AtomicDatabase`.
+
+## Evidência para Memoria.ia
+
+O workload representativo V112 usa 512 memórias lógicas × 24 registros físicos = 12.288 registros, com uma fronteira de durabilidade por memória lógica.
+
+Após a otimização V113 do replay BDW4, a execução registrada mostrou:
+
+| Métrica | Cadência v1.0 | Atômico v1.1 | Resultado registrado |
+|---|---:|---:|---:|
+| Escrita | 4.918,203 ms | 1.696,555 ms | v1.1 ~2,90× mais rápido |
+| Reopen + verificação total | 29,120 ms | 13,851 ms | v1.1 ~2,10× mais rápido |
+| Espaço em disco | 3.829.120 B | 3.597.664 B | v1.1 menor |
+
+Esses números são evidência de regressão específica do runner/workload, não uma alegação de superioridade universal.
 
 ## Objetivo de pesquisa
 
@@ -96,20 +116,30 @@ O acesso à partição é direto, mas a resolução interna depende da estrutura
 
 Os benchmarks preservam resultados favoráveis e desfavoráveis ao BDR. Não existe alegação de superioridade universal sobre SQLite, LMDB, LevelDB ou RocksDB. Comparações devem ser reproduzíveis e workload-specific.
 
-## Evidência de robustez da v1
+## Evidência de robustez
 
-A linha v1 foi promovida após validações de API, persistência, crash boundary, compatibilidade, churn, recursos e escala. Entre os gates registrados:
+A linha v1.1 passou, entre outros gates:
 
-- 50 milhões de operações: PASS;
-- 200 ciclos checkpoint/reopen: PASS;
-- 12 crash failpoints: PASS;
-- instalação CMake + consumidor externo: PASS;
-- compatibilidade BDR3/BDW3: PASS;
-- BDR CI: PASS;
-- V99: PASS;
-- V100: PASS.
+- V101 framing atômico;
+- V102 WAL em arquivo;
+- V103 commit-boundary failpoints;
+- V104 batch API;
+- V105 concorrência;
+- V106 migração BDR3/BDW3;
+- V107 candidato integrado;
+- V108 stress/soak integrado;
+- V109 matriz de crash recovery;
+- V110 contrato de durabilidade;
+- V111 compatibilidade da API pública/consumidor externo;
+- V112 benchmark representativo Memoria.ia;
+- BDR CI;
+- V99 e V100 evidence closure.
 
-## Baselines históricas
+## Baselines publicadas
+
+### v1.0.0
+
+Primeira linha estável publicada. Software DOI: **10.5281/zenodo.22120246**.
 
 ### v0.2.0-rc1
 
@@ -117,9 +147,13 @@ Primeira release candidate de API/ABI publicada. Software DOI: **10.5281/zenodo.
 
 ### v0.1.0
 
-Baseline histórica experimental e de pesquisa, preservada de forma imutável. Software DOI: **10.5281/zenodo.21938148**.
+Baseline histórica experimental e de pesquisa. Software DOI: **10.5281/zenodo.21938148**.
 
 ## Publicações e citação
+
+### BDR v1.1.0
+
+A versão v1.1.0 está tecnicamente pronta para publicação. O DOI específico desta versão será registrado somente depois que o serviço de publicação retornar o identificador real.
 
 ### Software BDR v1.0.0
 
@@ -145,7 +179,7 @@ A licença de software não concede direitos de patente.
 ORCID: 0009-0003-6075-4680  
 ETBRA Tecnologias — 2026
 
-**Software DOI v1.0.0:** 10.5281/zenodo.22120246  
+**Latest published software DOI (v1.0.0):** 10.5281/zenodo.22120246  
 **Software DOI v0.2.0-rc1:** 10.5281/zenodo.22074886  
 **Software DOI v0.1.0:** 10.5281/zenodo.21938148  
 **Preprint DOI:** 10.5281/zenodo.21937842
