@@ -16,6 +16,7 @@ Governance rule: no new public release, release-candidate publication, publicati
 - Installed package target: `bdr::bdr`
 - Public C++ API candidate: `experimental/api_v86/include/bdr/database.hpp`
 - Public API lock: `.github/v1-public-api.lock`
+- v1 binary packaging policy: static CMake target; no cross-version shared-library ABI guarantee
 
 ## Evidence already closed
 
@@ -42,6 +43,7 @@ Governance rule: no new public release, release-candidate publication, publicati
 - fallback checkpoint/reopen churn peak RSS: 27,956 KB, zero swap
 - public C++ source API freeze candidate documented: PASS
 - public header API-lock CI enforcement: PASS
+- v1 ABI policy decision: PASS — source/API compatibility + static package; no shared-library binary ABI promise
 - install/export through native CMake package: PASS
 - clean external `find_package(bdr)` consumer linked through `bdr::bdr`: PASS
 - installed-package write/checkpoint/close/reopen smoke: PASS
@@ -61,11 +63,7 @@ At 1M records in the materialized candidate/fallback path, the candidate used 28
 1. Materialized long soak:
    - run the 50M mutation scale campaign directly against `database_v1.cpp`;
    - require exact oracle verification, reopen/checkpoint stability and no durability regression.
-2. Binary ABI decision:
-   - the C++ source/API surface is frozen and CI-locked;
-   - stable shared-library ABI is not yet claimed;
-   - decide shared/static packaging, symbol visibility and versioning policy before any ABI guarantee.
-3. Final repository audit and release closure:
+2. Final repository audit and release closure:
    - verify tests, docs and licenses;
    - update `CITATION.cff`, `.zenodo.json`, `pyproject.toml`, README/release metadata only when v1 is actually promoted;
    - preserve historical v0.2.0-rc1 metadata until that point;
