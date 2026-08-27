@@ -1,0 +1,81 @@
+name: V1 Finalization
+
+on:
+  push:
+    branches: [ release/v1-finalization ]
+  workflow_dispatch:
+
+jobs:
+  root-build-and-api:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ cmake zlib1g-dev
+      - name: Verify frozen public API
+        run: |
+          expected=$(awk '{print $1}' .github/v1-public-api.lock)
+          path=$(awk '{print $2}' .github/v1-public-api.lock)
+          actual=$(git hash-object "$path")
+          test "$actual" = "$expected"
+      - name: Configure from repository root
+        run: cmake -S . -B build/v1 -DCMAKE_BUILD_TYPE=Release
+      - name: Build v1 contracts
+        run: cmake --build build/v1 --parallel --target v1_candidate_contract v1_fallback_contract
+      - name: Run v1 contracts
+        run: ctest --test-dir build/v1 --output-on-failure -R '^v1_.*_contract$'
+
+  root-package-consumer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ cmake zlib1g-dev
+      - name: Install from repository root
+        run: |
+          cmake -S . -B build/package -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PWD/build/prefix"
+          cmake --build build/package --parallel --target bdr_v1_candidate
+          cmake --install build/package
+      - name: Build external consumer
+        run: |
+          cmake -S experimental/api_v86/package_consumer -B build/consumer -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$PWD/build/prefix"
+          cmake --build build/consumer --parallel
+      - name: Run external consumer
+        run: build/consumer/bdr_v1_package_consumer
+
+  persistence-compat:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ cmake zlib1g-dev
+      - name: Build compatibility harnesses from root
+        run: |
+          cmake -S . -B build/v1 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/v1 --parallel --target v1_compat_baseline v1_compat_candidate v1_compat_fallback
+      - name: Baseline to candidate
+        run: |
+          rm -rf /tmp/bdr-v1-a
+          build/v1/experimental/api_v86/v1_compat_baseline write /tmp/bdr-v1-a
+          build/v1/experimental/api_v86/v1_compat_candidate verify /tmp/bdr-v1-a
+      - name: Candidate to baseline
+        run: |
+          rm -rf /tmp/bdr-v1-b
+          build/v1/experimental/api_v86/v1_compat_candidate write /tmp/bdr-v1-b
+          build/v1/experimental/api_v86/v1_compat_baseline verify /tmp/bdr-v1-b
+
+  crash-boundary:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Build crash gate
+        run: |
+          g++ -std=c++17 -O2 -pthread -Iexperimental/api_v86/include \
+            experimental/api_v86/test_v1_crash_boundary.cpp \
+            experimental/api_v86/src/database_v1.cpp -lz -o v1_crash
+      - name: Run 12 checkpoint crash failpoints
+        env:
+          BDR_BACKEND_LABEL: v1-finalization
+        run: ./v1_crash
