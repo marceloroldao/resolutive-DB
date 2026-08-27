@@ -165,14 +165,14 @@ ReplayResult replay(const std::vector<std::uint8_t>& bytes,
 
         if (cursor != payload_end) throw std::runtime_error("BDW4 trailing payload bytes");
 
-        // Atomic visibility boundary: no mutation occurs until the entire frame,
-        // CRC, sequence and every contained operation have been validated.
-        auto next_state = state;
-        for (const auto& op : decoded) {
-            if (op.type == OpType::Put) next_state[op.key] = op.value;
-            else next_state.erase(op.key);
+        // Atomic recovery boundary: the full frame, CRC, sequence and every
+        // operation are validated before any mutation. Once validation succeeds,
+        // applying directly avoids copying the complete accumulated state for
+        // every recovered batch (which made replay effectively quadratic).
+        for (auto& op : decoded) {
+            if (op.type == OpType::Put) state[std::move(op.key)] = std::move(op.value);
+            else state.erase(op.key);
         }
-        state.swap(next_state);
 
         result.last_sequence = sequence;
         ++result.committed_batches;
