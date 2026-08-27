@@ -6,6 +6,22 @@ on:
   workflow_dispatch:
 
 jobs:
+  api-lock:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify frozen public API header
+        shell: bash
+        run: |
+          expected=$(awk '{print $1}' .github/v1-public-api.lock)
+          path=$(awk '{print $2}' .github/v1-public-api.lock)
+          actual=$(git hash-object "$path")
+          echo "public_api_path=$path"
+          echo "expected_blob=$expected"
+          echo "actual_blob=$actual"
+          test "$actual" = "$expected"
+
   cmake-contract:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
