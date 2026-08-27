@@ -3,7 +3,7 @@
 from .core import BancoDeDadosResolutivo, EncoderResolutivo, EntidadeResolutiva
 from .persistent_engine import PersistentBDR, RecoveryError
 
-__version__ = "0.2.0rc1"
+__version__ = "1.0.0"
 
 __all__ = [
     "BancoDeDadosResolutivo",
