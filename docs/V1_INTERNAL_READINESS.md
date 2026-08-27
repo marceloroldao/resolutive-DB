@@ -13,6 +13,8 @@ Governance rule: no new public release, release-candidate publication, publicati
 - WAL format: BDW3, unchanged
 - Checkpoint: streaming encoder
 - Build: native CMake targets for candidate and fallback
+- Public C++ API candidate: `experimental/api_v86/include/bdr/database.hpp`
+- Public API lock: `.github/v1-public-api.lock`
 
 ## Evidence already closed
 
@@ -23,7 +25,7 @@ Governance rule: no new public release, release-candidate publication, publicati
 - database crash recovery: PASS
 - database concurrency at 1/4/8/16 writers: PASS
 - exact-value verification after heavy churn: PASS
-- 50M mutation scale campaign: PASS
+- 50M mutation scale campaign on the earlier baseline/experimental path: PASS
 - 5M distinct-record cardinality campaign: PASS
 - paired 1M candidate resource comparison: PASS
 - paired 5M candidate resource comparison: PASS
@@ -32,6 +34,13 @@ Governance rule: no new public release, release-candidate publication, publicati
 - generator/shim removal from v1 validation path: PASS
 - native CMake build for candidate and fallback: PASS
 - CTest contract suite for candidate and fallback: PASS
+- cross-version BDR3/BDW3 compatibility: PASS in all four directions (baseline->candidate, candidate->baseline, fallback->candidate, candidate->fallback)
+- repeated checkpoint/reopen churn: PASS on candidate and fallback
+- checkpoint/reopen churn volume: 200 cycles, 2,000,000 operations per backend, 1,880,025 accepted mutations
+- candidate checkpoint/reopen churn peak RSS: 26,664 KB, zero swap
+- fallback checkpoint/reopen churn peak RSS: 27,956 KB, zero swap
+- public C++ source API freeze candidate documented: PASS
+- public header API-lock CI enforcement: PASS
 
 ## High-cardinality evidence
 
@@ -39,18 +48,18 @@ At 5M records in paired same-runner measurements before source cleanup, CompactI
 
 With streaming checkpoint enabled, paired 5M lifecycle testing showed lower RSS, faster reopen, equal persistent footprint, and no durability regression. Timing gains remain secondary evidence because hosted-runner I/O variance is significant; memory reduction and correctness gates are treated as the stronger signals.
 
-## Required gates before any future merge toward v1
+## Gates still open before any future merge toward v1
 
-1. Cross-version file compatibility:
-   - baseline-created BDR3/BDW3 -> v1 candidate read/recover;
-   - v1 candidate-created BDR3/BDW3 -> baseline/fallback read/recover;
-   - deletes, updates, checkpoints and sequence numbers must remain exact.
-2. Long soak on the materialized `database_v1.cpp`, not a generated source.
-3. Repeated checkpoint/reopen cycles under churn on candidate and fallback.
-4. API/ABI review and explicit decision about the v1 public ABI surface.
-5. Build/install/package validation from the native CMake path.
-6. Final resource regression gate with fixed acceptance thresholds.
-7. Final repository audit: tests, docs, licenses, metadata and no experimental publication language.
+1. Materialized long soak:
+   - run the 50M mutation scale campaign directly against `database_v1.cpp`;
+   - require exact oracle verification, reopen/checkpoint stability and no durability regression.
+2. Binary ABI decision:
+   - the C++ source/API surface is frozen and CI-locked;
+   - stable shared-library ABI is not yet claimed;
+   - decide shared/static packaging, symbol visibility and versioning policy before any ABI guarantee.
+3. Build/install/package validation from the native CMake path.
+4. Final resource regression gate with fixed acceptance thresholds.
+5. Final repository audit: tests, docs, licenses, metadata and no experimental publication language.
 
 ## Non-goals at this stage
 
