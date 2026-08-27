@@ -1,23 +1,21 @@
 cff-version: 1.2.0
-message: "If you use the BDR software, please cite this software release and the associated scientific preprint where appropriate."
+message: "If you use BDR v1.0.0, please cite this software release after publication and the associated scientific preprint where appropriate."
 title: "Banco de Dados Resolutivo (BDR) / Resolutive Database Engine"
-version: "0.2.0-rc1"
-date-released: 2026-08-24
-doi: "10.5281/zenodo.22074886"
+version: "1.0.0"
 type: software
 authors:
   - family-names: "Matos"
     given-names: "Marcelo Roldão"
     orcid: "https://orcid.org/0009-0003-6075-4680"
 repository-code: "https://github.com/marceloroldao/resolutive-DB"
-url: "https://github.com/marceloroldao/resolutive-DB/releases/tag/0.2.0-rc1"
+url: "https://github.com/marceloroldao/resolutive-DB"
 abstract: >-
-  BDR is an experimental persistent key-value database research project investigating
-  deterministic resolutive addressing, local partitioning, adaptive data structures,
-  write-ahead logging, checkpoints, crash recovery, stable C ABI integration, Python
-  bindings, and reproducible performance evaluation. Version 0.2.0-rc1 is an
-  experimental release candidate and is not represented as production-ready. The
-  project does not claim strict worst-case O(1) complexity for the complete engine.
+  BDR v1.0.0 is the first stable-engine line of the Resolutive Database Engine,
+  providing a frozen public C++ source API, the bdr::bdr CMake consumer target,
+  CompactIndex as the preferred internal index, BDR3 snapshots, BDW3 write-ahead
+  logs, streaming checkpoints, crash recovery, and reproducible validation at
+  high cardinality. Performance claims remain workload-specific and the project
+  does not claim strict worst-case O(1) complexity for the complete engine.
 keywords:
   - resolutive database
   - BDR
@@ -25,8 +23,8 @@ keywords:
   - persistent storage
   - write-ahead log
   - crash recovery
-  - C ABI
-  - Python bindings
+  - C++ API
+  - CMake
   - adaptive partitioning
   - benchmarking
   - reproducible research
