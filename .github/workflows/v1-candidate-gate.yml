@@ -127,3 +127,38 @@ jobs:
             v1_checkpoint_crash_${{ matrix.mode }}.log
             v1_resource_${{ matrix.mode }}.log
           if-no-files-found: error
+
+  v1-soak:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[v1-soak]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+
+      - name: Build materialized v1 scale gate
+        run: |
+          g++ -std=c++17 -O2 -pthread \
+            -Iexperimental/api_v86/include \
+            experimental/v03_scale/scale_gate.cpp \
+            experimental/api_v86/src/database_v1.cpp \
+            -lz -o v1_scale_gate
+
+      - name: Run 50M materialized v1 soak
+        env:
+          BDR_SCALE_OPS: "50000000"
+          BDR_SCALE_CYCLE_OPS: "10000"
+          BDR_SCALE_KEY_SPACE: "100000"
+          BDR_SCALE_CHECKPOINT_EVERY_CYCLES: "10"
+        run: |
+          /usr/bin/time -v ./v1_scale_gate 2>&1 | tee v1_scale_gate_50m.log
+
+      - name: Upload soak evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-materialized-50m-soak
+          path: v1_scale_gate_50m.log
+          if-no-files-found: error
