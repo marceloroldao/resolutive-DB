@@ -94,27 +94,46 @@ jobs:
         env:
           BDR_BACKEND_LABEL: v1-clean-compact-streaming
         run: ./v1_crash
-      - name: Build resource gate
+      - name: Build paired resource gates
         run: |
           g++ -std=c++17 -O2 -pthread -Iexperimental/api_v86/include \
             experimental/api_v86/test_v1_resource.cpp \
-            experimental/api_v86/src/database_v1.cpp -lz -o v1_resource
-      - name: Run resource gate
+            experimental/api_v86/src/database_v1.cpp -lz -o v1_resource_candidate
+          g++ -std=c++17 -O2 -pthread -DBDR_V1_FALLBACK_INDEX -Iexperimental/api_v86/include \
+            experimental/api_v86/test_v1_resource.cpp \
+            experimental/api_v86/src/database_v1.cpp \
+            experimental/api_v86/src/resolutive_index.cpp -lz -o v1_resource_fallback
+      - name: Run candidate resource gate
         env:
           BDR_BACKEND_LABEL: v1-clean-compact-streaming
           BDR_RESOURCE_RECORDS: 1000000
-        run: /usr/bin/time -v ./v1_resource 2>&1 | tee v1_resource.log
-      - name: Enforce thresholds
+        run: /usr/bin/time -v ./v1_resource_candidate 2>&1 | tee v1_resource_candidate.log
+      - name: Run fallback resource gate
+        env:
+          BDR_BACKEND_LABEL: v1-clean-fallback-streaming
+          BDR_RESOURCE_RECORDS: 1000000
+        run: /usr/bin/time -v ./v1_resource_fallback 2>&1 | tee v1_resource_fallback.log
+      - name: Enforce paired resource thresholds
+        shell: bash
         run: |
-          rss=$(awk -F: '/Maximum resident set size/ {gsub(/^[ \t]+/,"",$2); print $2}' v1_resource.log | tail -1)
-          disk=$(grep 'DATABASE_BACKEND_RESOURCE PASS' v1_resource.log | sed -n 's/.*disk_bytes=\([0-9]*\).*/\1/p')
-          records=$(grep 'DATABASE_BACKEND_RESOURCE PASS' v1_resource.log | sed -n 's/.*records=\([0-9]*\).*/\1/p')
-          swaps=$(awk -F: '/Swaps:/ {gsub(/^[ \t]+/,"",$2); print $2}' v1_resource.log | tail -1)
-          echo "rss_kb=$rss disk_bytes=$disk records=$records swaps=$swaps"
-          test "$records" = "1000000"
-          test "$swaps" = "0"
-          test "$rss" -le 330000
-          test "$disk" -le 55000000
+          c_rss=$(awk -F: '/Maximum resident set size/ {gsub(/^[ \t]+/,"",$2); print $2}' v1_resource_candidate.log | tail -1)
+          f_rss=$(awk -F: '/Maximum resident set size/ {gsub(/^[ \t]+/,"",$2); print $2}' v1_resource_fallback.log | tail -1)
+          c_disk=$(grep 'DATABASE_BACKEND_RESOURCE PASS' v1_resource_candidate.log | grep -oE 'disk_bytes=[0-9]+' | head -1 | cut -d= -f2)
+          f_disk=$(grep 'DATABASE_BACKEND_RESOURCE PASS' v1_resource_fallback.log | grep -oE 'disk_bytes=[0-9]+' | head -1 | cut -d= -f2)
+          c_records=$(grep 'DATABASE_BACKEND_RESOURCE PASS' v1_resource_candidate.log | grep -oE ' records=[0-9]+' | head -1 | cut -d= -f2)
+          f_records=$(grep 'DATABASE_BACKEND_RESOURCE PASS' v1_resource_fallback.log | grep -oE ' records=[0-9]+' | head -1 | cut -d= -f2)
+          c_swaps=$(awk -F: '/Swaps:/ {gsub(/^[ \t]+/,"",$2); print $2}' v1_resource_candidate.log | tail -1)
+          f_swaps=$(awk -F: '/Swaps:/ {gsub(/^[ \t]+/,"",$2); print $2}' v1_resource_fallback.log | tail -1)
+          echo "candidate_rss_kb=$c_rss fallback_rss_kb=$f_rss candidate_disk=$c_disk fallback_disk=$f_disk"
+          echo "candidate_records=$c_records fallback_records=$f_records candidate_swaps=$c_swaps fallback_swaps=$f_swaps"
+          test "$c_records" = "1000000"
+          test "$f_records" = "1000000"
+          test "$c_swaps" = "0"
+          test "$f_swaps" = "0"
+          test "$c_disk" -le 55000000
+          test "$c_disk" = "$f_disk"
+          # Same-runner relative gate: candidate must retain at least a 5% RSS advantage.
+          test $((c_rss * 100)) -le $((f_rss * 95))
 
   soak-50m:
     if: github.event_name == 'workflow_dispatch'
