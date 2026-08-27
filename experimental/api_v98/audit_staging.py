@@ -8,6 +8,7 @@ staging = root / 'experimental/api_v98'
 
 errors = []
 notes = []
+software_doi = '10.5281/zenodo.22120246'
 
 def require_text(path, needle):
     p = root / path
@@ -18,7 +19,6 @@ def require_text(path, needle):
     if needle not in text:
         errors.append(f'{path}: missing {needle!r}')
 
-# Preserve the old RC staging documents exactly as historical evidence.
 require_text('experimental/api_v98/RC_STAGING.md', 'NOT RELEASED / NOT TAGGED / NOT PUBLISHED')
 require_text('experimental/api_v98/RELEASE_NOTES_v0.2.0-rc1_DRAFT.md', 'Draft only. Not released.')
 notes.append('Pre-publication V98 staging documents are historical evidence, not statements of current release status.')
@@ -27,13 +27,13 @@ require_text('LICENSE', 'BDR ACADEMIC AND NON-COMMERCIAL RESEARCH LICENSE v1.0')
 require_text('LICENSE', 'Commercial Use Prohibited Without Separate License')
 require_text('LICENSE', 'No Patent License')
 
-# Current publication target must be v1.0.0 and must not predeclare a v1
-# software DOI. The known preprint DOI remains valid and required.
 require_text('CITATION.cff', 'version: "1.0.0"')
+require_text('CITATION.cff', f'doi: "{software_doi}"')
 require_text('CITATION.cff', '10.5281/zenodo.21937842')
-require_text('RELEASE_NOTES_v1.0.0.md', 'PUBLICATION READY / TAG PENDING')
+require_text('RELEASE_NOTES_v1.0.0.md', '50,000,000-operation materialized soak: PASS')
 require_text('CHANGELOG.md', '1.0.0 — Final / Publication Ready')
-require_text('README.md', 'BDR v1.0.0 — Publication Ready / Tag Pending')
+require_text('README.md', 'BDR v1.0.0 — Released')
+require_text('README.md', software_doi)
 
 citation = (root / 'CITATION.cff').read_text(encoding='utf-8')
 for forbidden in [
@@ -56,10 +56,12 @@ else:
     candidate = False
 
 out = {
-    'schema': 3,
+    'schema': 4,
     'historical_staging_version': '0.2.0-rc1',
     'published_software_baseline': '0.2.0-rc1',
     'publication_target': '1.0.0',
+    'publication_state': 'released',
+    'software_doi': software_doi,
     'candidate_evidence_present': manifest_path.exists(),
     'candidate': candidate,
     'staging_history_preserved': True,

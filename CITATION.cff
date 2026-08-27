@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: "If you use BDR v1.0.0, please cite this software release after publication and the associated scientific preprint where appropriate."
+message: "If you use BDR v1.0.0, please cite this software release and the associated scientific preprint where appropriate."
 title: "Banco de Dados Resolutivo (BDR) / Resolutive Database Engine"
 version: "1.0.0"
 type: software
@@ -8,7 +8,8 @@ authors:
     given-names: "Marcelo Roldão"
     orcid: "https://orcid.org/0009-0003-6075-4680"
 repository-code: "https://github.com/marceloroldao/resolutive-DB"
-url: "https://github.com/marceloroldao/resolutive-DB"
+url: "https://github.com/marceloroldao/resolutive-DB/releases/tag/v1.0.0"
+doi: "10.5281/zenodo.22120246"
 abstract: >-
   BDR v1.0.0 is the first stable-engine line of the Resolutive Database Engine,
   providing a frozen public C++ source API, the bdr::bdr CMake consumer target,

@@ -16,6 +16,9 @@ freeze = (root / 'experimental/api_v91/API_FREEZE_DRAFT.md').read_text(encoding=
 rc_release_notes_path = root / 'RELEASE_NOTES_v0.2.0-rc1.md'
 v1_release_notes_path = root / 'RELEASE_NOTES_v1.0.0.md'
 
+software_doi = '10.5281/zenodo.22120246'
+preprint_doi = '10.5281/zenodo.21937842'
+
 for needle in [
     'BDR ACADEMIC AND NON-COMMERCIAL RESEARCH LICENSE v1.0',
     'Commercial Use Prohibited Without Separate License',
@@ -25,16 +28,15 @@ for needle in [
     if needle not in license_text:
         errors.append(f'LICENSE missing required clause: {needle}')
 
-# The publication branch must identify v1.0.0, while never predeclaring a
-# software DOI. The only DOI allowed in CITATION.cff before publication is the
-# already-real associated scientific preprint DOI in preferred-citation.
 for needle in [
     'version: "1.0.0"',
     'repository-code: "https://github.com/marceloroldao/resolutive-DB"',
-    'doi: "10.5281/zenodo.21937842"',
+    'url: "https://github.com/marceloroldao/resolutive-DB/releases/tag/v1.0.0"',
+    f'doi: "{software_doi}"',
+    f'doi: "{preprint_doi}"',
 ]:
     if needle not in citation:
-        errors.append(f'CITATION.cff v1 publication metadata missing: {needle}')
+        errors.append(f'CITATION.cff published v1 metadata missing: {needle}')
 
 for forbidden in [
     'doi: "10.5281/zenodo.22074886"',
@@ -51,8 +53,6 @@ root_version = root_version.group(1) if root_version else None
 if root_name != 'resolutive-db' or root_version != '1.0.0':
     errors.append(f'Root package metadata is not v1.0.0: name={root_name!r} version={root_version!r}')
 
-# Preserve the historical native RC integration fixture exactly as published;
-# it is evidence, not the v1 package version source of truth.
 native_name = re.search(r'^name\s*=\s*"([^"]+)"', native_pyproject, re.M)
 native_version = re.search(r'^version\s*=\s*"([^"]+)"', native_pyproject, re.M)
 native_name = native_name.group(1) if native_name else None
@@ -70,19 +70,20 @@ if not v1_release_notes_path.exists():
     errors.append('Final RELEASE_NOTES_v1.0.0.md is missing.')
 else:
     v1_notes = v1_release_notes_path.read_text(encoding='utf-8')
-    for needle in ['PUBLICATION READY / TAG PENDING', '50,000,000-operation materialized soak: PASS']:
-        if needle not in v1_notes:
-            errors.append(f'RELEASE_NOTES_v1.0.0.md missing required publication evidence: {needle}')
+    if '50,000,000-operation materialized soak: PASS' not in v1_notes:
+        errors.append('RELEASE_NOTES_v1.0.0.md missing 50M soak publication evidence.')
 
-notes.append('CITATION.cff is staged for v1.0.0 without a predeclared software DOI.')
+notes.append(f'CITATION.cff records the definitive published v1.0.0 software DOI {software_doi}.')
 notes.append('The real v0.2.0-rc1 integration baseline remains preserved as historical evidence.')
 notes.append('The associated scientific preprint DOI remains unchanged and real.')
 
 result = {
-    'schema': 4,
+    'schema': 5,
     'release_metadata_ready': not errors,
     'publication_target': '1.0.0',
-    'software_doi_predeclared': 'doi: "10.5281/zenodo.22074886"' in citation,
+    'publication_state': 'released',
+    'software_doi': software_doi,
+    'software_doi_recorded': f'doi: "{software_doi}"' in citation,
     'historical_rc_integration_preserved': historical_rc_intact,
     'published_software_baseline': '0.2.0-rc1',
     'root_package': {'name': root_name, 'version': root_version},

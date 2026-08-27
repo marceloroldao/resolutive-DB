@@ -1,15 +1,15 @@
 # Banco de Dados Resolutivo (BDR)
 
-**Current stable-engine line: BDR v1.0.0 — Publication Ready / Tag Pending**
+**Current stable-engine line: BDR v1.0.0 — Released**
 
-**Software DOI (v1.0.0):** pending publication; no DOI is predeclared  
+**Software DOI (v1.0.0):** 10.5281/zenodo.22120246  
 **Previous software DOI (v0.2.0-rc1):** 10.5281/zenodo.22074886  
 **Historical software DOI (v0.1.0):** 10.5281/zenodo.21938148  
 **Scientific preprint DOI:** 10.5281/zenodo.21937842
 
 Projeto da **ETBRA Tecnologias** para investigar e desenvolver um mecanismo de armazenamento persistente e endereçamento resolutivo determinístico, com particionamento local, integração nativa e recuperação transacional.
 
-> **Status de engenharia:** v1.0.0 é a primeira linha de motor estável do BDR. A árvore técnica foi validada e congelada para publicação. A versão só deve ser considerada publicamente lançada depois da criação explícita da tag/GitHub Release `v1.0.0`. O projeto não reivindica complexidade O(1) estrita no pior caso para o motor completo; resultados de desempenho permanecem específicos ao workload e ao ambiente de teste.
+> **Status de engenharia:** v1.0.0 é a primeira linha de motor estável do BDR. A árvore técnica foi validada, congelada e publicada. O projeto não reivindica complexidade O(1) estrita no pior caso para o motor completo; resultados de desempenho permanecem específicos ao workload e ao ambiente de teste.
 
 ## Estado atual — v1.0.0
 
@@ -41,7 +41,7 @@ A v1 preserva:
 - **BDR3** para snapshots/checkpoints;
 - **BDW3** para segmentos de write-ahead log.
 
-Mudanças futuras incompatíveis de formato devem introduzir versão/magic explícitos e documentação de migração. Os formatos BDR3/BDW3 não devem ser modificados durante o fechamento/publicação da v1.
+Mudanças futuras incompatíveis de formato devem introduzir versão/magic explícitos e documentação de migração.
 
 ## Integração C++
 
@@ -109,8 +109,6 @@ A linha v1 foi promovida após validações de API, persistência, crash boundar
 - V99: PASS;
 - V100: PASS.
 
-Qualquer alteração de código após o freeze exige nova execução dos gates técnicos relevantes antes de uma tag v1.0.0.
-
 ## Baselines históricas
 
 ### v0.2.0-rc1
@@ -125,7 +123,7 @@ Baseline histórica experimental e de pesquisa, preservada de forma imutável. S
 
 ### Software BDR v1.0.0
 
-A metadata de publicação está preparada, mas o DOI da v1.0.0 **não é pré-declarado**. Ele deve ser registrado no repositório somente depois que o serviço de publicação devolver o identificador real.
+**Matos, Marcelo Roldão (2026). Banco de Dados Resolutivo (BDR) / Resolutive Database Engine, v1.0.0. Zenodo. DOI: 10.5281/zenodo.22120246.**
 
 ### Preprint científico
 
@@ -147,7 +145,7 @@ A licença de software não concede direitos de patente.
 ORCID: 0009-0003-6075-4680  
 ETBRA Tecnologias — 2026
 
-**Software DOI v1.0.0:** pending publication  
+**Software DOI v1.0.0:** 10.5281/zenodo.22120246  
 **Software DOI v0.2.0-rc1:** 10.5281/zenodo.22074886  
 **Software DOI v0.1.0:** 10.5281/zenodo.21938148  
 **Preprint DOI:** 10.5281/zenodo.21937842
