@@ -9,6 +9,7 @@ authors:
     orcid: "https://orcid.org/0009-0003-6075-4680"
 repository-code: "https://github.com/marceloroldao/resolutive-DB"
 url: "https://github.com/marceloroldao/resolutive-DB/releases/tag/v1.1.0"
+doi: "10.5281/zenodo.22130421"
 abstract: >-
   BDR v1.1.0 extends the stable v1 line with an additive atomic logical-write
   path for Memoria.ia integration. It preserves the existing bdr::Database
