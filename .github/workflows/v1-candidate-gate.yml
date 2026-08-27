@@ -180,6 +180,24 @@ jobs:
           BDR_BACKEND_LABEL: ${{ steps.cfg.outputs.label }}
           BDR_RESOURCE_RECORDS: 1000000
         run: /usr/bin/time -v ./v1_resource 2>&1 | tee v1_resource_${{ matrix.mode }}.log
+      - name: Enforce candidate resource thresholds
+        if: matrix.mode == 'candidate'
+        shell: bash
+        run: |
+          log=v1_resource_candidate.log
+          rss_kb=$(awk -F': ' '/Maximum resident set size \(kbytes\)/ {print $2}' "$log" | tail -1)
+          swaps=$(awk -F': ' '/Swaps/ {print $2}' "$log" | tail -1)
+          result=$(grep 'DATABASE_BACKEND_RESOURCE PASS' "$log" | tail -1)
+          records=$(printf '%s\n' "$result" | sed -n 's/.* records=\([0-9]*\).*/\1/p')
+          disk_bytes=$(printf '%s\n' "$result" | sed -n 's/.* disk_bytes=\([0-9]*\).*/\1/p')
+          echo "candidate_rss_kb=$rss_kb limit=330000"
+          echo "candidate_disk_bytes=$disk_bytes limit=55000000"
+          echo "candidate_records=$records required=1000000"
+          echo "candidate_swaps=$swaps required=0"
+          test -n "$rss_kb" && test "$rss_kb" -le 330000
+          test -n "$disk_bytes" && test "$disk_bytes" -le 55000000
+          test "$records" = "1000000"
+          test "$swaps" = "0"
       - name: Upload evidence
         uses: actions/upload-artifact@v4
         with:
