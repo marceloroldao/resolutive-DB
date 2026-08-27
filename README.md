@@ -1,15 +1,16 @@
 # Banco de Dados Resolutivo (BDR)
 
-**Current stable-engine line: BDR v1.1.0 — Publication Ready / Tag Pending**
+**Current stable-engine line: BDR v1.1.0 — Released**
 
-**Latest published software DOI (v1.0.0):** 10.5281/zenodo.22120246  
-**Previous software DOI (v0.2.0-rc1):** 10.5281/zenodo.22074886  
+**Software DOI (v1.1.0):** 10.5281/zenodo.22130421  
+**Previous software DOI (v1.0.0):** 10.5281/zenodo.22120246  
+**Software DOI (v0.2.0-rc1):** 10.5281/zenodo.22074886  
 **Historical software DOI (v0.1.0):** 10.5281/zenodo.21938148  
 **Scientific preprint DOI:** 10.5281/zenodo.21937842
 
 Projeto da **ETBRA Tecnologias** para investigar e desenvolver um mecanismo de armazenamento persistente e endereçamento resolutivo determinístico, com particionamento local, integração nativa e recuperação transacional.
 
-> **Status de engenharia:** v1.1.0 é a evolução compatível da linha estável v1, adicionando batches lógicos atômicos em BDW4 para requisitos de persistência da Memoria.ia. A árvore técnica foi integrada e validada; tag, GitHub Release e DOI específico da v1.1.0 ainda não foram criados. O projeto não reivindica complexidade O(1) estrita no pior caso para o motor completo; resultados de desempenho permanecem específicos ao workload e ao ambiente de teste.
+> **Status de engenharia:** v1.1.0 é a evolução publicada e compatível da linha estável v1, adicionando batches lógicos atômicos em BDW4 para requisitos de persistência da Memoria.ia. O projeto não reivindica complexidade O(1) estrita no pior caso para o motor completo; resultados de desempenho permanecem específicos ao workload e ao ambiente de teste.
 
 ## Estado atual — v1.1.0
 
@@ -137,6 +138,10 @@ A linha v1.1 passou, entre outros gates:
 
 ## Baselines publicadas
 
+### v1.1.0
+
+Evolução estável com persistência lógica atômica BDW4. Software DOI: **10.5281/zenodo.22130421**.
+
 ### v1.0.0
 
 Primeira linha estável publicada. Software DOI: **10.5281/zenodo.22120246**.
@@ -151,9 +156,9 @@ Baseline histórica experimental e de pesquisa. Software DOI: **10.5281/zenodo.2
 
 ## Publicações e citação
 
-### BDR v1.1.0
+### Software BDR v1.1.0
 
-A versão v1.1.0 está tecnicamente pronta para publicação. O DOI específico desta versão será registrado somente depois que o serviço de publicação retornar o identificador real.
+**Matos, Marcelo Roldão (2026). Banco de Dados Resolutivo (BDR) / Resolutive Database Engine, v1.1.0. Zenodo. DOI: 10.5281/zenodo.22130421.**
 
 ### Software BDR v1.0.0
 
@@ -179,7 +184,8 @@ A licença de software não concede direitos de patente.
 ORCID: 0009-0003-6075-4680  
 ETBRA Tecnologias — 2026
 
-**Latest published software DOI (v1.0.0):** 10.5281/zenodo.22120246  
+**Software DOI v1.1.0:** 10.5281/zenodo.22130421  
+**Software DOI v1.0.0:** 10.5281/zenodo.22120246  
 **Software DOI v0.2.0-rc1:** 10.5281/zenodo.22074886  
 **Software DOI v0.1.0:** 10.5281/zenodo.21938148  
 **Preprint DOI:** 10.5281/zenodo.21937842
