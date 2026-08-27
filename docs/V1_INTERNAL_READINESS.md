@@ -13,6 +13,7 @@ Governance rule: no new public release, release-candidate publication, publicati
 - WAL format: BDW3, unchanged
 - Checkpoint: streaming encoder
 - Build: native CMake targets for candidate and fallback
+- Installed package target: `bdr::bdr`
 - Public C++ API candidate: `experimental/api_v86/include/bdr/database.hpp`
 - Public API lock: `.github/v1-public-api.lock`
 
@@ -41,12 +42,19 @@ Governance rule: no new public release, release-candidate publication, publicati
 - fallback checkpoint/reopen churn peak RSS: 27,956 KB, zero swap
 - public C++ source API freeze candidate documented: PASS
 - public header API-lock CI enforcement: PASS
+- install/export through native CMake package: PASS
+- clean external `find_package(bdr)` consumer linked through `bdr::bdr`: PASS
+- installed-package write/checkpoint/close/reopen smoke: PASS
+- candidate 1M fixed resource threshold gate: PASS
+- candidate resource thresholds: RSS <= 330,000 KB, disk <= 55,000,000 bytes, records = 1,000,000, swaps = 0
 
 ## High-cardinality evidence
 
 At 5M records in paired same-runner measurements before source cleanup, CompactIndex reduced RSS by about 26.8% versus the baseline index while keeping ingest throughput at least equivalent.
 
 With streaming checkpoint enabled, paired 5M lifecycle testing showed lower RSS, faster reopen, equal persistent footprint, and no durability regression. Timing gains remain secondary evidence because hosted-runner I/O variance is significant; memory reduction and correctness gates are treated as the stronger signals.
+
+At 1M records in the materialized candidate/fallback path, the candidate used 280,400 KB peak RSS versus 370,568 KB for fallback, while both produced 53,777,840 bytes of persistent data. This evidence is the basis for the current conservative resource gate.
 
 ## Gates still open before any future merge toward v1
 
@@ -57,9 +65,11 @@ With streaming checkpoint enabled, paired 5M lifecycle testing showed lower RSS,
    - the C++ source/API surface is frozen and CI-locked;
    - stable shared-library ABI is not yet claimed;
    - decide shared/static packaging, symbol visibility and versioning policy before any ABI guarantee.
-3. Build/install/package validation from the native CMake path.
-4. Final resource regression gate with fixed acceptance thresholds.
-5. Final repository audit: tests, docs, licenses, metadata and no experimental publication language.
+3. Final repository audit and release closure:
+   - verify tests, docs and licenses;
+   - update `CITATION.cff`, `.zenodo.json`, `pyproject.toml`, README/release metadata only when v1 is actually promoted;
+   - preserve historical v0.2.0-rc1 metadata until that point;
+   - ensure no premature public v1/DOI language exists.
 
 ## Non-goals at this stage
 
