@@ -1,0 +1,23 @@
+name: V109 Integrated Crash Recovery
+
+on:
+  push:
+    branches:
+      - develop/v1.1.0
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  crash-recovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ zlib1g-dev
+      - name: Configure
+        run: cmake -S experimental/api_v109 -B build-v109 -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build-v109 --parallel 2
+      - name: Test integrated crash recovery matrix
+        run: ctest --test-dir build-v109 --output-on-failure
