@@ -22,6 +22,27 @@ jobs:
           echo "actual_blob=$actual"
           test "$actual" = "$expected"
 
+  package-consumer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ cmake zlib1g-dev
+      - name: Configure and build candidate package
+        run: |
+          cmake -S experimental/api_v86 -B build/package -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PWD/build/prefix"
+          cmake --build build/package --parallel --target bdr_v1_candidate
+          cmake --install build/package
+      - name: Configure clean external consumer
+        run: |
+          cmake -S experimental/api_v86/package_consumer -B build/consumer \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$PWD/build/prefix"
+          cmake --build build/consumer --parallel
+      - name: Run installed package consumer
+        run: build/consumer/bdr_v1_package_consumer
+
   cmake-contract:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
