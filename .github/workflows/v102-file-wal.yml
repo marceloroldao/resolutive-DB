@@ -1,0 +1,25 @@
+name: V102 File WAL
+
+on:
+  push:
+    branches:
+      - develop/v1.1.0
+  pull_request:
+    paths:
+      - 'experimental/api_v102/**'
+      - 'experimental/api_v101/**'
+      - '.github/workflows/v102-file-wal.yml'
+
+jobs:
+  file-wal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ zlib1g-dev
+      - name: Configure
+        run: cmake -S experimental/api_v102 -B build-v102 -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build-v102 -j2
+      - name: Test file WAL recovery
+        run: ctest --test-dir build-v102 --output-on-failure

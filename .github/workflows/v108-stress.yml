@@ -1,0 +1,23 @@
+name: V108 Integrated Stress
+
+on:
+  push:
+    branches:
+      - develop/v1.1.0
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  stress:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ zlib1g-dev
+      - name: Configure
+        run: cmake -S experimental/api_v108 -B build-v108 -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build-v108 --parallel 2
+      - name: Run integrated stress soak
+        run: ctest --test-dir build-v108 --output-on-failure

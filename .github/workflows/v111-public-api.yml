@@ -1,0 +1,31 @@
+name: V111 Public API Compatibility
+
+on:
+  push:
+    branches:
+      - develop/v1.1.0
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  public-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ zlib1g-dev
+      - name: Configure repository
+        run: cmake -S . -B build-v111 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/install-v111
+      - name: Build repository
+        run: cmake --build build-v111 --parallel 2
+      - name: Test in-tree public compatibility
+        run: ctest --test-dir build-v111 -R v111_public_compat --output-on-failure
+      - name: Install public package
+        run: cmake --install build-v111
+      - name: Configure external consumer
+        run: cmake -S experimental/api_v111/package_consumer -B build-v111-consumer -DCMAKE_PREFIX_PATH=$PWD/install-v111
+      - name: Build external consumer
+        run: cmake --build build-v111-consumer --parallel 2
+      - name: Run external consumer
+        run: ./build-v111-consumer/v111_external_consumer

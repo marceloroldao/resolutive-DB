@@ -1,5 +1,53 @@
 # Changelog
 
+## 1.1.0 — Internal Release Candidate / Unreleased
+
+Backward-compatible post-v1 development line focused on atomic logical-memory writes for Memoria.ia while preserving the immutable v1.0.0 baseline.
+
+### Public API
+- Existing `bdr::Database` v1.0 source calls remain unchanged and continue to compile through the installed `bdr::bdr` target.
+- New additive `bdr::AtomicDatabase` surface is exported through `bdr/atomic_database.hpp`.
+- Public atomic operations: `write_batch`, `put_many`, `erase_many`, single-key `put`/`erase`, `sync`, `last_sequence` and `durable_sequence`.
+- Explicit durability modes: `Async`, `BatchSync` and `PerOperationSync`.
+- `PerOperationSync` is restricted to exactly one operation; multi-operation atomic batches use `BatchSync`.
+
+### Persistence and migration
+- Existing BDR3 snapshots and BDW3 WAL segments remain readable.
+- New atomic writes use explicitly versioned BDW4 frames rather than changing BDW3 interpretation.
+- Side-by-side migration preserves v1.0 persistence files unchanged.
+- Torn/incomplete BDW4 final frames are discarded as a unit and repaired to the last valid boundary.
+- Each batch carries one monotonic commit sequence and complete-frame CRC validation.
+
+### Correctness and durability evidence
+- V101 atomic framing: PASS.
+- V102 file WAL: PASS.
+- V103 commit-boundary failpoints: PASS.
+- V104 batch API: PASS.
+- V105 concurrency: PASS.
+- V106 BDR3/BDW3 migration: PASS.
+- V107 integrated candidate: PASS.
+- V108 integrated stress/soak: PASS.
+- V109 integrated crash-recovery matrix: PASS.
+- V110 durability contract: PASS.
+- V111 installed public API compatibility: PASS.
+- BDR CI: PASS.
+
+### Memoria.ia acceptance evidence
+Representative V112 workload: 512 logical memories × 24 physical records = 12,288 records, with one durability boundary per logical memory.
+
+After V113 removed an unnecessary full-state copy from each recovered BDW4 batch:
+- v1.0-cadence write: 4,918.203 ms;
+- v1.1 atomic write: 1,696.555 ms (~2.90x faster in this run);
+- v1.0 reopen + full verify: 29.120 ms;
+- v1.1 atomic reopen + full verify: 13.851 ms (~2.10x faster in this run);
+- v1.0-cadence disk: 3,829,120 bytes;
+- v1.1 atomic disk: 3,597,664 bytes.
+
+These figures are workload- and runner-specific and are retained as regression evidence, not universal performance claims.
+
+### Status
+Internal release candidate only. No v1.1.0 tag, GitHub Release or publication DOI has been created. v1.0.0 remains the released stable baseline until final review and explicit promotion.
+
 ## 1.0.0 — Final / Publication Ready
 
 First stable-engine line of the Resolutive Database Engine (BDR). The technical tree is frozen and publication-ready. The release is not considered publicly published until the v1.0.0 tag/GitHub Release exists.

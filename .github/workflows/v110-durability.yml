@@ -1,0 +1,23 @@
+name: V110 Durability Contract
+
+on:
+  push:
+    branches:
+      - develop/v1.1.0
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  durability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ zlib1g-dev
+      - name: Configure
+        run: cmake -S experimental/api_v110 -B build-v110 -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build-v110 --parallel 2
+      - name: Test durability contract
+        run: ctest --test-dir build-v110 --output-on-failure

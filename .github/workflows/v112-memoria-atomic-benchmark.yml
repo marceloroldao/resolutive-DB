@@ -1,0 +1,49 @@
+name: V112 Memoria Atomic Benchmark
+
+on:
+  push:
+    branches:
+      - develop/v1.1.0
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  memoria-atomic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ zlib1g-dev
+      - name: Configure BDR
+        run: cmake -S . -B build-v112 -DCMAKE_BUILD_TYPE=Release
+      - name: Build BDR
+        run: cmake --build build-v112 --parallel 2 --target bdr_v1_candidate
+      - name: Build Memoria workload benchmark
+        run: |
+          BDR_LIB="$(find build-v112 -name 'libbdr.a' -print -quit)"
+          test -n "$BDR_LIB"
+          c++ -std=c++17 -O3 -DNDEBUG benchmarks/v112_memoria_atomic.cpp \
+            -I experimental/api_v86/include "$BDR_LIB" -lz -pthread -o v112_memoria_atomic
+      - name: Run representative workload
+        run: |
+          mkdir -p benchmark-results
+          ./v112_memoria_atomic 512 24 256 | tee benchmark-results/v112.json
+      - name: Summarize benchmark
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, pathlib
+          r=json.loads(pathlib.Path('benchmark-results/v112.json').read_text())
+          print('## V112 — Memoria.ia representative atomic workload')
+          print(f"Logical memories: **{r['memories']}**; physical records: **{r['logical_records']:,}**")
+          print('| Metric | v1.0 cadence | v1.1 atomic | atomic / legacy |')
+          print('|---|---:|---:|---:|')
+          print(f"| write + one durability boundary/memory | {r['legacy_write_ms']:.3f} ms | {r['atomic_write_ms']:.3f} ms | {r['atomic_over_legacy_write']:.3f}x |")
+          print(f"| reopen + full verify | {r['legacy_reopen_verify_ms']:.3f} ms | {r['atomic_reopen_verify_ms']:.3f} ms | {r['atomic_over_legacy_reopen']:.3f}x |")
+          print(f"| disk bytes | {r['legacy_disk_bytes']} | {r['atomic_disk_bytes']} | — |")
+          print(f"\nAtomic commits: **{r['atomic_commits']}**; each commit contains {r['records_per_memory']} physical records as one logical memory.")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v112-memoria-atomic-benchmark
+          path: benchmark-results/v112.json
