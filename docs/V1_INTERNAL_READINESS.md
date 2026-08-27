@@ -1,10 +1,10 @@
 # BDR v1 — Internal Readiness
 
-Status: **internal candidate only**. This document is not a release or publication checklist.
+Status: **clean promotion candidate only**. This document is not a release or publication checklist.
 
 Governance rule: no new public release, release-candidate publication, publication tag, or DOI before v1.0.
 
-## Preferred internal architecture
+## Preferred v1 architecture
 
 - Database engine: `experimental/api_v86/src/database_v1.cpp`
 - Index: `CompactIndex` by default
@@ -27,7 +27,6 @@ Governance rule: no new public release, release-candidate publication, publicati
 - database crash recovery: PASS
 - database concurrency at 1/4/8/16 writers: PASS
 - exact-value verification after heavy churn: PASS
-- 50M mutation scale campaign on the earlier baseline/experimental path: PASS
 - 5M distinct-record cardinality campaign: PASS
 - paired 1M candidate resource comparison: PASS
 - paired 5M candidate resource comparison: PASS
@@ -47,32 +46,55 @@ Governance rule: no new public release, release-candidate publication, publicati
 - install/export through native CMake package: PASS
 - clean external `find_package(bdr)` consumer linked through `bdr::bdr`: PASS
 - installed-package write/checkpoint/close/reopen smoke: PASS
-- candidate 1M fixed resource threshold gate: PASS
-- candidate resource thresholds: RSS <= 330,000 KB, disk <= 55,000,000 bytes, records = 1,000,000, swaps = 0
+- materialized 50M mutation soak directly against `database_v1.cpp`: PASS
+- clean selective-promotion branch CI: PASS for API lock, CMake/CTest, cross-compatibility, package consumer, 12-point crash boundary and paired resource gate
 
-## High-cardinality evidence
+## Materialized 50M soak evidence
+
+The materialized implementation `database_v1.cpp` completed the long soak with:
+
+- operations: 50,000,000
+- cycles: 5,000
+- final records: 77,749
+- elapsed wall time: 24:43.33
+- peak RSS: 47,552 KB
+- swaps: 0
+- exit status: 0
+
+The scale gate reported `PASS`, and the evidence artifact was uploaded successfully by GitHub Actions.
+
+## Resource evidence
 
 At 5M records in paired same-runner measurements before source cleanup, CompactIndex reduced RSS by about 26.8% versus the baseline index while keeping ingest throughput at least equivalent.
 
 With streaming checkpoint enabled, paired 5M lifecycle testing showed lower RSS, faster reopen, equal persistent footprint, and no durability regression. Timing gains remain secondary evidence because hosted-runner I/O variance is significant; memory reduction and correctness gates are treated as the stronger signals.
 
-At 1M records in the materialized candidate/fallback path, the candidate used 280,400 KB peak RSS versus 370,568 KB for fallback, while both produced 53,777,840 bytes of persistent data. This evidence is the basis for the current conservative resource gate.
+The clean-promotion branch now uses a same-runner paired resource gate rather than a brittle absolute RSS limit. At 1M records in the latest clean run:
 
-## Gates still open before any future merge toward v1
+- candidate RSS: 279,156 KB
+- fallback RSS: 347,256 KB
+- candidate persistent footprint: 53,777,840 bytes
+- fallback persistent footprint: 53,777,840 bytes
+- candidate swaps: 0
+- fallback swaps: 0
+- records: exactly 1,000,000 in both paths
 
-1. Materialized long soak:
-   - run the 50M mutation scale campaign directly against `database_v1.cpp`;
-   - require exact oracle verification, reopen/checkpoint stability and no durability regression.
-2. Final repository audit and release closure:
-   - verify tests, docs and licenses;
-   - update `CITATION.cff`, `.zenodo.json`, `pyproject.toml`, README/release metadata only when v1 is actually promoted;
-   - preserve historical v0.2.0-rc1 metadata until that point;
-   - ensure no premature public v1/DOI language exists.
+The candidate retained about a 19.6% RSS advantage in that run. The CI requires at least a 5% same-runner RSS advantage, identical disk footprint, exact cardinality and zero swap.
+
+## Remaining gate before any future merge toward v1
+
+Final repository/release closure only:
+
+- verify the clean promotion diff remains limited to the proven v1 subset;
+- keep `CITATION.cff`, `.zenodo.json`, `pyproject.toml` and public README/release metadata at the currently published v0.2.0-rc1 state until actual v1 promotion;
+- update version/release metadata only in the final v1 promotion step;
+- ensure no premature public v1/DOI language exists;
+- do not merge into `main` until the clean promotion review is explicitly approved.
 
 ## Non-goals at this stage
 
 - no new disk format;
-- no public release;
-- no DOI;
+- no public release before v1;
+- no DOI before v1;
 - no removal of the preserved baseline implementation;
 - no administrative UI work until the database reaches v1.0.
