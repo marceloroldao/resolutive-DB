@@ -1,0 +1,27 @@
+name: V106 Migration
+
+on:
+  push:
+    branches:
+      - develop/v1.1.0
+  pull_request:
+    paths:
+      - 'experimental/api_v106/**'
+      - 'experimental/api_v101/**'
+      - 'experimental/api_v102/**'
+      - 'experimental/api_v86/**'
+      - '.github/workflows/v106-migration.yml'
+
+jobs:
+  migration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ zlib1g-dev
+      - name: Configure
+        run: cmake -S experimental/api_v106 -B build-v106 -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build-v106 -j2
+      - name: Test v1.0 to v1.1 side-by-side migration
+        run: ctest --test-dir build-v106 --output-on-failure
