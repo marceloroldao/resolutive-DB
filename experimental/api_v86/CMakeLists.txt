@@ -42,6 +42,17 @@ target_link_libraries(bdr_v1_fallback PUBLIC ZLIB::ZLIB Threads::Threads)
 add_executable(v1_fallback_contract test_contract.cpp)
 target_link_libraries(v1_fallback_contract PRIVATE bdr_v1_fallback)
 
+# Cross-version persistence compatibility harness. The same deterministic
+# dataset is written/read by three independently linked engine variants.
+add_executable(v1_compat_baseline test_v1_cross_compat.cpp)
+target_link_libraries(v1_compat_baseline PRIVATE bdr_v86)
+
+add_executable(v1_compat_candidate test_v1_cross_compat.cpp)
+target_link_libraries(v1_compat_candidate PRIVATE bdr_v1_candidate)
+
+add_executable(v1_compat_fallback test_v1_cross_compat.cpp)
+target_link_libraries(v1_compat_fallback PRIVATE bdr_v1_fallback)
+
 enable_testing()
 add_test(NAME v86_contract COMMAND v86_contract)
 add_test(NAME v1_candidate_contract COMMAND v1_candidate_contract)
