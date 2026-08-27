@@ -1,6 +1,6 @@
 const NS = "http://www.w3.org/2000/svg";
-
 const $ = (selector) => document.querySelector(selector);
+let snapshotCache = null;
 
 function svg(name, attrs = {}) {
   const el = document.createElementNS(NS, name);
@@ -35,14 +35,14 @@ function showNode(node, group) {
   const panel = $("#inspector");
   panel.hidden = false;
   const fields = [
-    ["ID", node.id],
-    ["ρR", node.rho_R],
-    ["φ", node.phi],
-    ["θ", Number(node.theta).toFixed(8)],
+    ["BDR record ID", node.id],
+    ["ρR / região", node.rho_R],
+    ["φ / fase", node.phi],
+    ["θ / direção", Number(node.theta).toFixed(8)],
     ["fν", Number(node.f_nu).toFixed(8)],
     ["payload bytes", node.payload_size],
     ["fingerprint", node.fingerprint],
-    ["payload", node.payload_preview, "payload"],
+    ["payload preview", node.payload_preview, "payload"],
   ];
   panel.replaceChildren();
   for (const [label, value, className] of fields) {
@@ -58,43 +58,68 @@ function showNode(node, group) {
 function renderMap(nodes, stats) {
   const map = $("#map");
   map.replaceChildren();
-  const cx = 450;
-  const cy = 300;
-  const maxRadius = 250;
+  const cx = 550;
+  const cy = 345;
+  const maxRadius = 285;
   const bucketCount = Math.max(Number(stats.bucket_count ?? 1), 1);
 
-  for (const r of [65, 125, 185, 250]) {
+  for (const r of [72, 142, 214, 285]) {
     map.appendChild(svg("circle", { cx, cy, r, class: "orbit" }));
   }
-  map.appendChild(svg("line", { x1: 120, y1: cy, x2: 780, y2: cy, class: "axis" }));
-  map.appendChild(svg("line", { x1: cx, y1: 35, x2: cx, y2: 565, class: "axis" }));
-  map.appendChild(svg("circle", { cx, cy, r: 5, fill: "rgba(167,243,208,.9)" }));
+  map.appendChild(svg("line", { x1: 120, y1: cy, x2: 980, y2: cy, class: "axis" }));
+  map.appendChild(svg("line", { x1: cx, y1: 40, x2: cx, y2: 650, class: "axis" }));
+  map.appendChild(svg("circle", { cx, cy, r: 4, fill: "rgba(159,240,207,.92)" }));
 
   for (const node of nodes) {
     const normalizedRho = Math.min(Math.max(Number(node.rho_R) / Math.max(bucketCount - 1, 1), 0), 1);
-    const radius = 24 + normalizedRho * (maxRadius - 24);
+    const radius = 28 + normalizedRho * (maxRadius - 28);
     const angle = Number(node.theta) - Math.PI / 2;
     const x = cx + Math.cos(angle) * radius;
     const y = cy + Math.sin(angle) * radius;
-    const size = 5 + Math.min(Math.max(Number(node.f_nu), 0), 1) * 7;
-    const group = svg("g", { class: "node", tabindex: "0", "aria-label": `Nódulo ${node.id}` });
+    const size = 5 + Math.min(Math.max(Number(node.f_nu), 0), 1) * 8;
+    const group = svg("g", { class: "node", tabindex: "0", "aria-label": `Estado BDR ${node.id}` });
     group.appendChild(svg("circle", { cx: x.toFixed(2), cy: y.toFixed(2), r: size.toFixed(2) }));
+
+    if (nodes.length <= 80) {
+      const label = svg("text", { x: (x + size + 5).toFixed(2), y: (y + 3).toFixed(2), class: "node-label" });
+      label.textContent = `#${node.id}`;
+      group.appendChild(label);
+    }
+
     group.addEventListener("click", () => showNode(node, group));
     group.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") showNode(node, group);
     });
     map.appendChild(group);
   }
+
+  $("#result-count").textContent = `${nodes.length} estados visíveis`;
+}
+
+function matches(node, query) {
+  if (!query) return true;
+  const haystack = [node.id, node.rho_R, node.phi, node.fingerprint, node.payload_preview]
+    .map((value) => String(value ?? "").toLowerCase())
+    .join(" ");
+  return haystack.includes(query.toLowerCase());
+}
+
+function applySearch() {
+  if (!snapshotCache) return;
+  const query = $("#search").value.trim();
+  const filtered = snapshotCache.nodes.filter((node) => matches(node, query));
+  renderMap(filtered, snapshotCache.statistics);
 }
 
 async function start() {
   try {
     const health = await fetch("/api/health", { cache: "no-store" }).then((r) => r.json());
-    $("#health").textContent = health.status === "ok" ? "BDR conectado · somente leitura" : "estado desconhecido";
-    const snapshot = await fetch("/api/snapshot", { cache: "no-store" }).then((r) => r.json());
-    $("#version").textContent = `BDR ${snapshot.bdr_version}`;
-    renderMetrics(snapshot.statistics);
-    renderMap(snapshot.nodes, snapshot.statistics);
+    $("#health").textContent = health.status === "ok" ? "BDR conectado" : "estado desconhecido";
+    snapshotCache = await fetch("/api/snapshot", { cache: "no-store" }).then((r) => r.json());
+    $("#version").textContent = `BDR ${snapshotCache.bdr_version}`;
+    renderMetrics(snapshotCache.statistics);
+    renderMap(snapshotCache.nodes, snapshotCache.statistics);
+    $("#search").addEventListener("input", applySearch);
   } catch (error) {
     $("#health").textContent = "falha de conexão";
     console.error(error);
