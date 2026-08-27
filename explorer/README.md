@@ -4,6 +4,8 @@ Status: experimental v0.1 scaffold
 
 The Resolutive DB Explorer is a read-only visual and observability layer for BDR. Its first purpose is to make the resolutive address space observable without changing the stable database engine or depending on private internals.
 
+Formal architecture and boundaries: [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
 ## Design rules
 
 1. **Do not modify the stable BDR v1 public contract merely for visualization.**
