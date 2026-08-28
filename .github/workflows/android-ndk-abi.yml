@@ -5,19 +5,14 @@ on:
   push:
     branches:
       - feat/android-ndk-abi
-    paths:
-      - 'experimental/api_v86/**'
-      - '.github/workflows/android-ndk-abi.yml'
   pull_request:
-    paths:
-      - 'experimental/api_v86/**'
-      - '.github/workflows/android-ndk-abi.yml'
 
 jobs:
   android-arm64:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
@@ -36,7 +31,11 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release
 
       - name: Build BDR C ABI
-        run: "$ANDROID_SDK_ROOT/cmake/3.31.6/bin/cmake" --build build-android --target bdr_c --parallel 2
+        run: |
+          "$ANDROID_SDK_ROOT/cmake/3.31.6/bin/cmake" \
+            --build build-android \
+            --target bdr_c \
+            --parallel 2
 
       - name: Verify shared library
         run: test -f build-android/experimental/api_v86/libbdr_c.so
