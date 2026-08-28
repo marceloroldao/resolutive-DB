@@ -26,6 +26,13 @@ typedef enum bdr_c_durability {
     BDR_C_PER_OPERATION_SYNC = 2
 } bdr_c_durability;
 
+typedef struct bdr_c_pair {
+    const void* key;
+    size_t key_size;
+    const void* value;
+    size_t value_size;
+} bdr_c_pair;
+
 uint32_t bdr_c_abi_version(void);
 const char* bdr_c_last_error(void);
 
@@ -42,6 +49,12 @@ bdr_c_status bdr_c_put(
     size_t key_size,
     const void* value,
     size_t value_size,
+    bdr_c_durability durability);
+
+bdr_c_status bdr_c_put_many(
+    bdr_c_database* db,
+    const bdr_c_pair* entries,
+    size_t entry_count,
     bdr_c_durability durability);
 
 bdr_c_status bdr_c_get(
