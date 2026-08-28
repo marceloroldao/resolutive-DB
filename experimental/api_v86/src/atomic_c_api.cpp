@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,9 +22,14 @@ extern "C" uint32_t bdr_atomic_c_abi_version(void) {
 
 extern "C" bdr_atomic_c_status bdr_atomic_c_open(const char *directory, bdr_atomic_c_handle **out_handle) {
     if (!directory || !*directory || !out_handle) return BDR_ATOMIC_C_INVALID_ARGUMENT;
+    *out_handle = nullptr;
     try {
+        const std::filesystem::path dir(directory);
+        std::error_code ec;
+        std::filesystem::create_directories(dir, ec);
+        if (ec) return BDR_ATOMIC_C_IO_ERROR;
         std::unique_ptr<bdr_atomic_c_handle> h(new bdr_atomic_c_handle{});
-        h->db = bdr::AtomicDatabase::open(directory);
+        h->db = bdr::AtomicDatabase::open(dir);
         if (!h->db) return BDR_ATOMIC_C_IO_ERROR;
         *out_handle = h.release();
         return BDR_ATOMIC_C_OK;
@@ -45,6 +51,8 @@ extern "C" bdr_atomic_c_status bdr_atomic_c_write_batch(
         for (size_t i = 0; i < operation_count; ++i) {
             const auto &op = operations[i];
             if (!op.key || op.key_size == 0) return BDR_ATOMIC_C_INVALID_ARGUMENT;
+            if (op.type != BDR_ATOMIC_C_PUT && op.type != BDR_ATOMIC_C_DELETE)
+                return BDR_ATOMIC_C_INVALID_ARGUMENT;
             bdr::Operation item;
             item.type = op.type == BDR_ATOMIC_C_DELETE ? bdr::OperationType::Delete : bdr::OperationType::Put;
             item.key = bytes_to_string(op.key, op.key_size);
