@@ -42,8 +42,14 @@ add_library(bdr::bdr ALIAS bdr_v1_candidate)
 # Stable C boundary used by JNI/mobile consumers. This is only a wrapper over
 # the v1.1 Database engine; persistence semantics remain owned by bdr::Database.
 add_library(bdr_c_api STATIC src/c_api.cpp)
-target_include_directories(bdr_c_api PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set_target_properties(bdr_c_api PROPERTIES EXPORT_NAME c_api OUTPUT_NAME bdr_c_api)
+target_include_directories(bdr_c_api
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
 target_link_libraries(bdr_c_api PUBLIC bdr_v1_candidate)
+add_library(bdr::c_api ALIAS bdr_c_api)
 
 add_executable(v1_candidate_contract test_contract.cpp)
 target_link_libraries(v1_candidate_contract PRIVATE bdr_v1_candidate)
@@ -78,7 +84,7 @@ add_executable(v1_compat_fallback test_v1_cross_compat.cpp)
 target_link_libraries(v1_compat_fallback PRIVATE bdr_v1_fallback)
 
 # Install/export the v1 library. database.hpp is the frozen v1.0 surface;
-# atomic_database.hpp is the additive v1.1 surface.
+# atomic_database.hpp is the additive v1.1 surface; c_api.h is the mobile ABI.
 install(TARGETS bdr_v1_candidate bdr_c_api
     EXPORT bdrTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
