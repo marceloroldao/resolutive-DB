@@ -1,0 +1,41 @@
+name: android-ndk-abi
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/android-ndk-abi
+  pull_request:
+
+jobs:
+  android-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install NDK and CMake
+        run: sdkmanager "ndk;29.0.13113456" "cmake;3.31.6"
+
+      - name: Configure Android arm64-v8a
+        run: |
+          "$ANDROID_SDK_ROOT/cmake/3.31.6/bin/cmake" \
+            -S . \
+            -B build-android \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_SDK_ROOT/ndk/29.0.13113456/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-33 \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build BDR C ABI
+        run: |
+          "$ANDROID_SDK_ROOT/cmake/3.31.6/bin/cmake" \
+            --build build-android \
+            --target bdr_c \
+            --parallel 2
+
+      - name: Verify shared library
+        run: test -f build-android/experimental/api_v86/libbdr_c.so
