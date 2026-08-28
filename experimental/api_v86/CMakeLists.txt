@@ -39,8 +39,7 @@ target_include_directories(bdr_v1_candidate
 target_link_libraries(bdr_v1_candidate PUBLIC ZLIB::ZLIB Threads::Threads)
 add_library(bdr::bdr ALIAS bdr_v1_candidate)
 
-# Stable C boundary used by JNI/mobile consumers. This is only a wrapper over
-# the v1.1 Database engine; persistence semantics remain owned by bdr::Database.
+# Stable basic C boundary over bdr::Database.
 add_library(bdr_c_api STATIC src/c_api.cpp)
 set_target_properties(bdr_c_api PROPERTIES EXPORT_NAME c_api OUTPUT_NAME bdr_c_api)
 target_include_directories(bdr_c_api
@@ -51,6 +50,18 @@ target_include_directories(bdr_c_api
 target_link_libraries(bdr_c_api PUBLIC bdr_v1_candidate)
 add_library(bdr::c_api ALIAS bdr_c_api)
 
+# Additive atomic mobile boundary. One logical Memoria.ia memory/turn must be
+# committed through this target as one AtomicDatabase/BDW4 batch.
+add_library(bdr_atomic_c_api STATIC src/atomic_c_api.cpp)
+set_target_properties(bdr_atomic_c_api PROPERTIES EXPORT_NAME atomic_c_api OUTPUT_NAME bdr_atomic_c_api)
+target_include_directories(bdr_atomic_c_api
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+target_link_libraries(bdr_atomic_c_api PUBLIC bdr_v1_candidate)
+add_library(bdr::atomic_c_api ALIAS bdr_atomic_c_api)
+
 add_executable(v1_candidate_contract test_contract.cpp)
 target_link_libraries(v1_candidate_contract PRIVATE bdr_v1_candidate)
 
@@ -59,6 +70,9 @@ target_link_libraries(v111_public_compat PRIVATE bdr_v1_candidate)
 
 add_executable(v1_c_api_restart test_c_api_restart.cpp)
 target_link_libraries(v1_c_api_restart PRIVATE bdr_c_api)
+
+add_executable(v1_atomic_c_api_restart test_atomic_c_api_restart.cpp)
+target_link_libraries(v1_atomic_c_api_restart PRIVATE bdr_atomic_c_api)
 
 # Internal regression fallback: legacy ResolutiveIndex + the same streaming persistence path.
 add_library(bdr_v1_fallback STATIC
@@ -83,9 +97,7 @@ target_link_libraries(v1_compat_candidate PRIVATE bdr_v1_candidate)
 add_executable(v1_compat_fallback test_v1_cross_compat.cpp)
 target_link_libraries(v1_compat_fallback PRIVATE bdr_v1_fallback)
 
-# Install/export the v1 library. database.hpp is the frozen v1.0 surface;
-# atomic_database.hpp is the additive v1.1 surface; c_api.h is the mobile ABI.
-install(TARGETS bdr_v1_candidate bdr_c_api
+install(TARGETS bdr_v1_candidate bdr_c_api bdr_atomic_c_api
     EXPORT bdrTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -96,6 +108,7 @@ install(FILES
     include/bdr/database.hpp
     include/bdr/atomic_database.hpp
     include/bdr/c_api.h
+    include/bdr/atomic_c_api.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/bdr
 )
 install(EXPORT bdrTargets
@@ -113,3 +126,4 @@ add_test(NAME v1_candidate_contract COMMAND v1_candidate_contract)
 add_test(NAME v1_fallback_contract COMMAND v1_fallback_contract)
 add_test(NAME v111_public_compat COMMAND v111_public_compat)
 add_test(NAME v1_c_api_restart COMMAND v1_c_api_restart)
+add_test(NAME v1_atomic_c_api_restart COMMAND v1_atomic_c_api_restart)
