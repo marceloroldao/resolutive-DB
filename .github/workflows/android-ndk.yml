@@ -10,6 +10,22 @@ on:
   workflow_dispatch:
 
 jobs:
+  host-atomic-recovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install host dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ zlib1g-dev
+      - name: Configure host build
+        run: cmake -S . -B build/host-atomic -DCMAKE_BUILD_TYPE=Release
+      - name: Build atomic C ABI recovery tests
+        run: >-
+          cmake --build build/host-atomic
+          --target v1_atomic_c_api_restart v1_atomic_c_api_torn_tail
+          --config Release -j2
+      - name: Run atomic C ABI recovery tests
+        run: ctest --test-dir build/host-atomic --output-on-failure -R '^v1_atomic_c_api_(restart|torn_tail)$'
+
   android-arm64:
     runs-on: ubuntu-latest
     steps:
