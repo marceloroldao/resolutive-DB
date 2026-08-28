@@ -1,0 +1,48 @@
+name: Android NDK C ABI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "experimental/api_v86/**"
+      - ".github/workflows/android-ndk.yml"
+  workflow_dispatch:
+
+jobs:
+  android-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v3
+      - name: Install Android NDK
+        run: sdkmanager "ndk;27.2.12479018"
+      - name: Configure arm64-v8a
+        run: >-
+          cmake -S . -B build/android-arm64
+          -DCMAKE_TOOLCHAIN_FILE="$ANDROID_HOME/ndk/27.2.12479018/build/cmake/android.toolchain.cmake"
+          -DANDROID_ABI=arm64-v8a
+          -DANDROID_PLATFORM=android-26
+          -DCMAKE_BUILD_TYPE=Release
+      - name: Build BDR C ABI
+        run: cmake --build build/android-arm64 --target bdr_c_api --config Release -j2
+      - name: Verify arm64 archive
+        run: test -f build/android-arm64/experimental/api_v86/libbdr_c_api.a
+      - name: Verify exported C symbols
+        run: |
+          NM="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm"
+          "$NM" -g --defined-only build/android-arm64/experimental/api_v86/libbdr_c_api.a | tee symbols.txt
+          grep -q "bdr_c_open" symbols.txt
+          grep -q "bdr_c_put" symbols.txt
+          grep -q "bdr_c_get" symbols.txt
+          grep -q "bdr_c_delete" symbols.txt
+          grep -q "bdr_c_sync" symbols.txt
+          grep -q "bdr_c_checkpoint" symbols.txt
+          grep -q "bdr_c_close" symbols.txt
+      - name: Upload Android arm64-v8a archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: bdr-android-arm64-v8a
+          path: |
+            build/android-arm64/experimental/api_v86/libbdr_c_api.a
+            experimental/api_v86/include/bdr/c_api.h
