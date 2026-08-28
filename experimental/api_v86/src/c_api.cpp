@@ -6,7 +6,10 @@
 #include <filesystem>
 #include <memory>
 #include <new>
+#include <stdexcept>
 #include <string>
+#include <utility>
+#include <vector>
 
 struct bdr_c_database {
     std::unique_ptr<bdr::AtomicDatabase> impl;
@@ -101,6 +104,42 @@ bdr_c_status bdr_c_put(bdr_c_database* db,
         return BDR_C_IO_ERROR;
     } catch (...) {
         set_error("unknown error while writing BDR");
+        return BDR_C_INTERNAL_ERROR;
+    }
+}
+
+bdr_c_status bdr_c_put_many(bdr_c_database* db,
+                            const bdr_c_pair* entries,
+                            size_t entry_count,
+                            bdr_c_durability durability) {
+    if (!db || !db->impl || (entry_count > 0 && entries == nullptr)) {
+        set_error("invalid put_many arguments");
+        return BDR_C_INVALID_ARGUMENT;
+    }
+    try {
+        std::vector<std::pair<std::string, std::string>> batch;
+        batch.reserve(entry_count);
+        for (size_t i = 0; i < entry_count; ++i) {
+            const auto& entry = entries[i];
+            if (!valid_bytes(entry.key, entry.key_size) || !valid_bytes(entry.value, entry.value_size)) {
+                set_error("invalid put_many entry");
+                return BDR_C_INVALID_ARGUMENT;
+            }
+            batch.emplace_back(
+                bytes_to_string(entry.key, entry.key_size),
+                bytes_to_string(entry.value, entry.value_size));
+        }
+        db->impl->put_many(std::move(batch), to_mode(durability));
+        g_last_error.clear();
+        return BDR_C_OK;
+    } catch (const std::invalid_argument& e) {
+        set_error(e);
+        return BDR_C_INVALID_ARGUMENT;
+    } catch (const std::exception& e) {
+        set_error(e);
+        return BDR_C_IO_ERROR;
+    } catch (...) {
+        set_error("unknown error while writing BDR batch");
         return BDR_C_INTERNAL_ERROR;
     }
 }
