@@ -1,0 +1,21 @@
+{
+  "name": "Resolutive-DB Visual Identity",
+  "version": "1.0.0",
+  "colors": {
+    "deep_space": "#0A0F1C",
+    "midnight": "#121A2D",
+    "slate": "#1E293B",
+    "graphite": "#2D3748",
+    "resolutive_blue": "#2E6BFF",
+    "teal": "#28D7D0",
+    "violet": "#8F6BFF",
+    "amber": "#FF9F1C",
+    "mint": "#18C995",
+    "ice": "#EAF8FF",
+    "white": "#F3F7FF"
+  },
+  "typography": {
+    "interface": "Inter, Segoe UI, Arial, sans-serif",
+    "technical": "JetBrains Mono, Consolas, monospace"
+  }
+}
