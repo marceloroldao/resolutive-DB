@@ -54,6 +54,34 @@ jobs:
           BDR_ATOMIC_LIB: ${{ github.workspace }}/build/atomic-shared/libbdr_atomic_c_api.so
         run: python tests/atomic_shared_ctypes_smoke.py
 
+  atomic-shared-python-bridge-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install zlib with vcpkg
+        shell: pwsh
+        run: vcpkg install zlib:x64-windows
+      - name: Configure shared atomic ABI build
+        shell: pwsh
+        run: >-
+          cmake -S experimental/api_v86 -B build/atomic-shared-win
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
+          -DVCPKG_TARGET_TRIPLET=x64-windows
+      - name: Build shared atomic ABI
+        shell: pwsh
+        run: cmake --build build/atomic-shared-win --target bdr_atomic_c_api_shared --config Release
+      - name: Run Python ctypes restart and binary round-trip smoke
+        shell: pwsh
+        env:
+          BDR_ATOMIC_LIB: ${{ github.workspace }}\build\atomic-shared-win\Release\bdr_atomic_c_api.dll
+        run: |
+          $env:PATH = "C:\vcpkg\installed\x64-windows\bin;$env:PATH"
+          python tests/atomic_shared_ctypes_smoke.py
+
   cpp-compile:
     runs-on: ubuntu-latest
     steps:
