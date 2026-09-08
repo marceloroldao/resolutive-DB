@@ -30,7 +30,11 @@ add_library(bdr_v1_candidate STATIC
     ../api_v102/file_wal.cpp
     ../api_v101/atomic_wal.cpp
 )
-set_target_properties(bdr_v1_candidate PROPERTIES EXPORT_NAME bdr OUTPUT_NAME bdr)
+set_target_properties(bdr_v1_candidate PROPERTIES
+    EXPORT_NAME bdr
+    OUTPUT_NAME bdr
+    POSITION_INDEPENDENT_CODE ON
+)
 target_include_directories(bdr_v1_candidate
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -62,6 +66,35 @@ target_include_directories(bdr_atomic_c_api
 target_link_libraries(bdr_atomic_c_api PUBLIC bdr_v1_candidate)
 add_library(bdr::atomic_c_api ALIAS bdr_atomic_c_api)
 
+# Experimental host bridge for language bindings (Python ctypes/cffi first).
+# It uses the same AtomicDatabase/BDW4 sources as v1.1 but intentionally omits
+# the legacy bdr::Database implementation. That legacy engine still contains
+# Linux-specific file-lock/preallocation code and is not needed by AtomicDatabase:
+# v106 reads legacy BDR3/BDW3 files directly for side-by-side migration.
+add_library(bdr_atomic_c_api_shared SHARED
+    src/atomic_c_api.cpp
+    ../api_v111/atomic_database.cpp
+    ../api_v110/durable_database.cpp
+    ../api_v106/migration.cpp
+    ../api_v102/file_wal.cpp
+    ../api_v101/atomic_wal.cpp
+)
+set_target_properties(bdr_atomic_c_api_shared PROPERTIES
+    OUTPUT_NAME bdr_atomic_c_api
+    WINDOWS_EXPORT_ALL_SYMBOLS OFF
+)
+target_compile_definitions(bdr_atomic_c_api_shared
+    PRIVATE BDR_ATOMIC_C_API_SHARED=1 BDR_ATOMIC_C_API_BUILD=1
+    INTERFACE BDR_ATOMIC_C_API_SHARED=1
+)
+target_include_directories(bdr_atomic_c_api_shared
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+target_link_libraries(bdr_atomic_c_api_shared PUBLIC ZLIB::ZLIB Threads::Threads)
+add_library(bdr::atomic_c_api_shared ALIAS bdr_atomic_c_api_shared)
+
 add_executable(v1_candidate_contract test_contract.cpp)
 target_link_libraries(v1_candidate_contract PRIVATE bdr_v1_candidate)
 
@@ -76,6 +109,12 @@ target_link_libraries(v1_atomic_c_api_restart PRIVATE bdr_atomic_c_api)
 
 add_executable(v1_atomic_c_api_torn_tail test_atomic_c_api_torn_tail.cpp)
 target_link_libraries(v1_atomic_c_api_torn_tail PRIVATE bdr_atomic_c_api)
+
+# Re-run the existing restart contract through the shared host ABI. This proves
+# the language-binding surface does not introduce different persistence rules.
+add_executable(v1_atomic_shared_restart test_atomic_c_api_restart.cpp)
+target_compile_definitions(v1_atomic_shared_restart PRIVATE BDR_ATOMIC_C_API_SHARED=1)
+target_link_libraries(v1_atomic_shared_restart PRIVATE bdr_atomic_c_api_shared)
 
 # Internal regression fallback: legacy ResolutiveIndex + the same streaming persistence path.
 add_library(bdr_v1_fallback STATIC
@@ -100,7 +139,7 @@ target_link_libraries(v1_compat_candidate PRIVATE bdr_v1_candidate)
 add_executable(v1_compat_fallback test_v1_cross_compat.cpp)
 target_link_libraries(v1_compat_fallback PRIVATE bdr_v1_fallback)
 
-install(TARGETS bdr_v1_candidate bdr_c_api bdr_atomic_c_api
+install(TARGETS bdr_v1_candidate bdr_c_api bdr_atomic_c_api bdr_atomic_c_api_shared
     EXPORT bdrTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -131,3 +170,4 @@ add_test(NAME v111_public_compat COMMAND v111_public_compat)
 add_test(NAME v1_c_api_restart COMMAND v1_c_api_restart)
 add_test(NAME v1_atomic_c_api_restart COMMAND v1_atomic_c_api_restart)
 add_test(NAME v1_atomic_c_api_torn_tail COMMAND v1_atomic_c_api_torn_tail)
+add_test(NAME v1_atomic_shared_restart COMMAND v1_atomic_shared_restart)
