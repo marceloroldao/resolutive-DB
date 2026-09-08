@@ -1,5 +1,6 @@
 #include "file_wal.hpp"
 
+#include <algorithm>
 #include <cerrno>
 #include <fcntl.h>
 #include <fstream>
@@ -8,6 +9,7 @@
 
 #ifdef _WIN32
 #include <io.h>
+#include <sys/stat.h>
 #else
 #include <unistd.h>
 #endif
