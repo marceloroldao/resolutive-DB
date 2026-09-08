@@ -4,6 +4,16 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#if defined(_WIN32) && defined(BDR_ATOMIC_C_API_SHARED)
+#  if defined(BDR_ATOMIC_C_API_BUILD)
+#    define BDR_ATOMIC_C_API __declspec(dllexport)
+#  else
+#    define BDR_ATOMIC_C_API __declspec(dllimport)
+#  endif
+#else
+#  define BDR_ATOMIC_C_API
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -44,29 +54,29 @@ typedef struct bdr_atomic_c_batch_result {
     int durable;
 } bdr_atomic_c_batch_result;
 
-uint32_t bdr_atomic_c_abi_version(void);
-bdr_atomic_c_status bdr_atomic_c_open(const char *directory, bdr_atomic_c_handle **out_handle);
-bdr_atomic_c_status bdr_atomic_c_write_batch(
+BDR_ATOMIC_C_API uint32_t bdr_atomic_c_abi_version(void);
+BDR_ATOMIC_C_API bdr_atomic_c_status bdr_atomic_c_open(const char *directory, bdr_atomic_c_handle **out_handle);
+BDR_ATOMIC_C_API bdr_atomic_c_status bdr_atomic_c_write_batch(
     bdr_atomic_c_handle *handle,
     const bdr_atomic_c_operation *operations,
     size_t operation_count,
     bdr_atomic_c_batch_result *out_result);
-bdr_atomic_c_status bdr_atomic_c_get(
+BDR_ATOMIC_C_API bdr_atomic_c_status bdr_atomic_c_get(
     bdr_atomic_c_handle *handle,
     const void *key,
     size_t key_size,
     bdr_atomic_c_buffer *out_value);
-bdr_atomic_c_status bdr_atomic_c_exists(
+BDR_ATOMIC_C_API bdr_atomic_c_status bdr_atomic_c_exists(
     bdr_atomic_c_handle *handle,
     const void *key,
     size_t key_size,
     int *out_exists);
-bdr_atomic_c_status bdr_atomic_c_sync(bdr_atomic_c_handle *handle);
-bdr_atomic_c_status bdr_atomic_c_last_sequence(bdr_atomic_c_handle *handle, uint64_t *out_sequence);
-bdr_atomic_c_status bdr_atomic_c_durable_sequence(bdr_atomic_c_handle *handle, uint64_t *out_sequence);
-bdr_atomic_c_status bdr_atomic_c_integrity_check(bdr_atomic_c_handle *handle);
-void bdr_atomic_c_free_buffer(bdr_atomic_c_buffer buffer);
-void bdr_atomic_c_close(bdr_atomic_c_handle *handle);
+BDR_ATOMIC_C_API bdr_atomic_c_status bdr_atomic_c_sync(bdr_atomic_c_handle *handle);
+BDR_ATOMIC_C_API bdr_atomic_c_status bdr_atomic_c_last_sequence(bdr_atomic_c_handle *handle, uint64_t *out_sequence);
+BDR_ATOMIC_C_API bdr_atomic_c_status bdr_atomic_c_durable_sequence(bdr_atomic_c_handle *handle, uint64_t *out_sequence);
+BDR_ATOMIC_C_API bdr_atomic_c_status bdr_atomic_c_integrity_check(bdr_atomic_c_handle *handle);
+BDR_ATOMIC_C_API void bdr_atomic_c_free_buffer(bdr_atomic_c_buffer buffer);
+BDR_ATOMIC_C_API void bdr_atomic_c_close(bdr_atomic_c_handle *handle);
 
 #ifdef __cplusplus
 }
