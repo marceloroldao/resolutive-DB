@@ -4,10 +4,30 @@
 
 #include <fcntl.h>
 #include <stdexcept>
-#include <unistd.h>
 #include <utility>
 
+#ifdef _WIN32
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
+
 namespace bdr::v110 {
+namespace {
+
+#ifdef _WIN32
+int open_readonly(const std::filesystem::path& path) {
+    return ::_open(path.string().c_str(), _O_RDONLY | _O_BINARY);
+}
+int sync_fd(int fd) { return ::_commit(fd); }
+int close_fd(int fd) { return ::_close(fd); }
+#else
+int open_readonly(const std::filesystem::path& path) { return ::open(path.c_str(), O_RDONLY); }
+int sync_fd(int fd) { return ::fdatasync(fd); }
+int close_fd(int fd) { return ::close(fd); }
+#endif
+
+} // namespace
 
 DurableDatabase::DurableDatabase(std::filesystem::path legacy_directory,
                                  std::filesystem::path bdw4_path)
@@ -20,9 +40,6 @@ DurableDatabase::DurableDatabase(std::filesystem::path legacy_directory,
     if (std::filesystem::exists(bdw4_path_)) {
         auto recovered = v102::recover_file(bdw4_path_, state_, last_sequence_, true);
         last_sequence_ = recovered.last_sequence;
-        // Any complete frames recovered after reopening are the persisted prefix
-        // available to this process. The API cannot infer an ACK that a previous
-        // process did or did not receive, only the recoverable durable prefix.
         durable_sequence_ = recovered.last_sequence;
     }
 }
@@ -55,8 +72,6 @@ BatchResult DurableDatabase::write_batch(std::vector<v101::Operation> operations
     const auto sequence = last_sequence_ + 1;
     const bool sync_now = durability != DurabilityMode::Async;
     v102::append_batch(bdw4_path_, sequence, operations, sync_now);
-
-    // State becomes visible only after the complete frame append returned.
     apply(state_, operations);
     last_sequence_ = sequence;
     if (sync_now) durable_sequence_ = sequence;
@@ -101,11 +116,11 @@ void DurableDatabase::sync() {
         return;
     }
 
-    const int fd = ::open(bdw4_path_.c_str(), O_RDONLY);
+    const int fd = open_readonly(bdw4_path_);
     if (fd < 0) throw std::runtime_error("V110 sync open failed");
-    const int rc = ::fdatasync(fd);
-    ::close(fd);
-    if (rc != 0) throw std::runtime_error("V110 fdatasync failed");
+    const int rc = sync_fd(fd);
+    close_fd(fd);
+    if (rc != 0) throw std::runtime_error("V110 durable sync failed");
     durable_sequence_ = last_sequence_;
 }
 
