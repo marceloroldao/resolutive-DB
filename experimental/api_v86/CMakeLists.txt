@@ -67,9 +67,18 @@ target_link_libraries(bdr_atomic_c_api PUBLIC bdr_v1_candidate)
 add_library(bdr::atomic_c_api ALIAS bdr_atomic_c_api)
 
 # Experimental host bridge for language bindings (Python ctypes/cffi first).
-# This reuses the exact same C ABI and AtomicDatabase/BDW4 implementation; it
-# changes only the linkage form from static archive to shared library.
-add_library(bdr_atomic_c_api_shared SHARED src/atomic_c_api.cpp)
+# It uses the same AtomicDatabase/BDW4 sources as v1.1 but intentionally omits
+# the legacy bdr::Database implementation. That legacy engine still contains
+# Linux-specific file-lock/preallocation code and is not needed by AtomicDatabase:
+# v106 reads legacy BDR3/BDW3 files directly for side-by-side migration.
+add_library(bdr_atomic_c_api_shared SHARED
+    src/atomic_c_api.cpp
+    ../api_v111/atomic_database.cpp
+    ../api_v110/durable_database.cpp
+    ../api_v106/migration.cpp
+    ../api_v102/file_wal.cpp
+    ../api_v101/atomic_wal.cpp
+)
 set_target_properties(bdr_atomic_c_api_shared PROPERTIES
     OUTPUT_NAME bdr_atomic_c_api
     WINDOWS_EXPORT_ALL_SYMBOLS OFF
@@ -83,7 +92,7 @@ target_include_directories(bdr_atomic_c_api_shared
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
-target_link_libraries(bdr_atomic_c_api_shared PUBLIC bdr_v1_candidate)
+target_link_libraries(bdr_atomic_c_api_shared PUBLIC ZLIB::ZLIB Threads::Threads)
 add_library(bdr::atomic_c_api_shared ALIAS bdr_atomic_c_api_shared)
 
 add_executable(v1_candidate_contract test_contract.cpp)
