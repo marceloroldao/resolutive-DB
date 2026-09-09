@@ -1,11 +1,29 @@
 """Resolutive Database Engine (BDR) public API."""
 
+from .atomic import (
+    AtomicBDR,
+    AtomicBDRError,
+    AtomicBDRInvalidArgument,
+    AtomicBDRIOError,
+    BatchResult,
+    DurabilityMode,
+    Operation,
+    OperationType,
+)
 from .core import BancoDeDadosResolutivo, EncoderResolutivo, EntidadeResolutiva
 from .persistent_engine import PersistentBDR, RecoveryError
 
 __version__ = "1.1.0"
 
 __all__ = [
+    "AtomicBDR",
+    "AtomicBDRError",
+    "AtomicBDRInvalidArgument",
+    "AtomicBDRIOError",
+    "BatchResult",
+    "DurabilityMode",
+    "Operation",
+    "OperationType",
     "BancoDeDadosResolutivo",
     "EncoderResolutivo",
     "EntidadeResolutiva",
