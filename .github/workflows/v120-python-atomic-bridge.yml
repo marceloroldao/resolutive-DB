@@ -1,0 +1,46 @@
+name: V120 Python Atomic Bridge
+
+on:
+  push:
+    branches:
+      - experiment/v1.2-python-atomic-bridge
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  python-atomic-bridge:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ zlib1g-dev
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+      - name: Configure native BDR
+        run: cmake -S experimental/api_v86 -B build-v120 -DCMAKE_BUILD_TYPE=Release
+      - name: Build shared bridge and native regression targets
+        run: |
+          cmake --build build-v120 --parallel 2 --target \
+            bdr_atomic_c_api_shared \
+            v1_atomic_c_api_restart \
+            v1_atomic_c_api_torn_tail
+      - name: Run native v1.1 regression gates
+        run: |
+          ./build-v120/v1_atomic_c_api_restart
+          ./build-v120/v1_atomic_c_api_torn_tail
+      - name: Install Python package
+        run: python -m pip install -e .
+      - name: Run Python bridge and existing regression suite
+        run: |
+          BDR_LIB="$(find build-v120 -name 'libbdr_atomic_c_api.so' -print -quit)"
+          test -n "$BDR_LIB"
+          BDR_ATOMIC_LIBRARY="$BDR_LIB" python -m pytest -q tests

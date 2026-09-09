@@ -16,6 +16,22 @@ static std::string bytes_to_string(const void *data, size_t size) {
     return std::string(static_cast<const char *>(data), size);
 }
 
+static bool to_durability(bdr_atomic_c_durability mode, bdr::DurabilityMode *out) {
+    if (!out) return false;
+    switch (mode) {
+        case BDR_ATOMIC_C_ASYNC:
+            *out = bdr::DurabilityMode::Async;
+            return true;
+        case BDR_ATOMIC_C_BATCH_SYNC:
+            *out = bdr::DurabilityMode::BatchSync;
+            return true;
+        case BDR_ATOMIC_C_PER_OPERATION_SYNC:
+            *out = bdr::DurabilityMode::PerOperationSync;
+            return true;
+    }
+    return false;
+}
+
 extern "C" uint32_t bdr_atomic_c_abi_version(void) {
     return BDR_ATOMIC_C_ABI_VERSION;
 }
@@ -38,13 +54,16 @@ extern "C" bdr_atomic_c_status bdr_atomic_c_open(const char *directory, bdr_atom
     }
 }
 
-extern "C" bdr_atomic_c_status bdr_atomic_c_write_batch(
+extern "C" bdr_atomic_c_status bdr_atomic_c_write_batch_with_durability(
     bdr_atomic_c_handle *handle,
     const bdr_atomic_c_operation *operations,
     size_t operation_count,
+    bdr_atomic_c_durability durability,
     bdr_atomic_c_batch_result *out_result) {
     if (!handle || !handle->db || !operations || operation_count == 0 || !out_result)
         return BDR_ATOMIC_C_INVALID_ARGUMENT;
+    bdr::DurabilityMode native_durability;
+    if (!to_durability(durability, &native_durability)) return BDR_ATOMIC_C_INVALID_ARGUMENT;
     try {
         std::vector<bdr::Operation> batch;
         batch.reserve(operation_count);
@@ -62,7 +81,7 @@ extern "C" bdr_atomic_c_status bdr_atomic_c_write_batch(
             }
             batch.push_back(std::move(item));
         }
-        auto result = handle->db->write_batch(std::move(batch), bdr::DurabilityMode::BatchSync);
+        auto result = handle->db->write_batch(std::move(batch), native_durability);
         out_result->sequence = result.sequence;
         out_result->operations = result.operations;
         out_result->durable = result.durable ? 1 : 0;
@@ -70,6 +89,19 @@ extern "C" bdr_atomic_c_status bdr_atomic_c_write_batch(
     } catch (...) {
         return BDR_ATOMIC_C_IO_ERROR;
     }
+}
+
+extern "C" bdr_atomic_c_status bdr_atomic_c_write_batch(
+    bdr_atomic_c_handle *handle,
+    const bdr_atomic_c_operation *operations,
+    size_t operation_count,
+    bdr_atomic_c_batch_result *out_result) {
+    return bdr_atomic_c_write_batch_with_durability(
+        handle,
+        operations,
+        operation_count,
+        BDR_ATOMIC_C_BATCH_SYNC,
+        out_result);
 }
 
 extern "C" bdr_atomic_c_status bdr_atomic_c_get(

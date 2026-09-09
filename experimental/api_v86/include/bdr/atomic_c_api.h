@@ -25,6 +25,12 @@ typedef enum bdr_atomic_c_operation_type {
     BDR_ATOMIC_C_DELETE = 2
 } bdr_atomic_c_operation_type;
 
+typedef enum bdr_atomic_c_durability {
+    BDR_ATOMIC_C_ASYNC = 0,
+    BDR_ATOMIC_C_BATCH_SYNC = 1,
+    BDR_ATOMIC_C_PER_OPERATION_SYNC = 2
+} bdr_atomic_c_durability;
+
 typedef struct bdr_atomic_c_operation {
     bdr_atomic_c_operation_type type;
     const void *key;
@@ -46,10 +52,18 @@ typedef struct bdr_atomic_c_batch_result {
 
 uint32_t bdr_atomic_c_abi_version(void);
 bdr_atomic_c_status bdr_atomic_c_open(const char *directory, bdr_atomic_c_handle **out_handle);
+/* Backward-compatible v1 entry point: BatchSync remains the default. */
 bdr_atomic_c_status bdr_atomic_c_write_batch(
     bdr_atomic_c_handle *handle,
     const bdr_atomic_c_operation *operations,
     size_t operation_count,
+    bdr_atomic_c_batch_result *out_result);
+/* Additive selectable-durability entry point; atomicity is unchanged. */
+bdr_atomic_c_status bdr_atomic_c_write_batch_with_durability(
+    bdr_atomic_c_handle *handle,
+    const bdr_atomic_c_operation *operations,
+    size_t operation_count,
+    bdr_atomic_c_durability durability,
     bdr_atomic_c_batch_result *out_result);
 bdr_atomic_c_status bdr_atomic_c_get(
     bdr_atomic_c_handle *handle,
