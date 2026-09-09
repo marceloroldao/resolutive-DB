@@ -13,6 +13,18 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def test_atomic_abi_v2_is_exposed_by_current_candidate(tmp_path: Path):
+    db = AtomicBDR.open(tmp_path / "abi-v2")
+    try:
+        assert int(db._lib.bdr_atomic_c_abi_version()) == 2
+        assert hasattr(db._lib, "bdr_atomic_c_write_batch_with_durability")
+        assert hasattr(db._lib, "bdr_atomic_c_get_many")
+        assert hasattr(db._lib, "bdr_atomic_c_get_many_packed")
+        assert hasattr(db._lib, "bdr_atomic_c_diagnostics_get")
+    finally:
+        db.close()
+
+
 def test_binary_utf8_batch_sequence_and_reopen(tmp_path: Path):
     db_path = tmp_path / "atomic-bdr"
     db = AtomicBDR.open(db_path)
