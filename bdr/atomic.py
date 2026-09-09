@@ -301,16 +301,21 @@ class AtomicBDR:
             return []
         if not hasattr(self._lib, "bdr_atomic_c_get_many"):
             return [self.get(key) for key in keys]
-        c_keys = (_CKey * len(keys))()
-        keepalive = []
-        for index, key in enumerate(keys):
-            raw = _to_bytes(key, field="key")
-            if not raw:
-                raise AtomicBDRInvalidArgument("key must not be empty")
-            buf = ctypes.create_string_buffer(raw, len(raw))
-            keepalive.append(buf)
-            c_keys[index].data = ctypes.cast(buf, ctypes.c_void_p)
+
+        raw_keys = [_to_bytes(key, field="key") for key in keys]
+        if any(not raw for raw in raw_keys):
+            raise AtomicBDRInvalidArgument("key must not be empty")
+
+        packed_keys = b"".join(raw_keys)
+        key_arena = ctypes.create_string_buffer(packed_keys, len(packed_keys))
+        base_address = ctypes.addressof(key_arena)
+        c_keys = (_CKey * len(raw_keys))()
+        offset = 0
+        for index, raw in enumerate(raw_keys):
+            c_keys[index].data = base_address + offset
             c_keys[index].size = len(raw)
+            offset += len(raw)
+
         out_values = (_CBuffer * len(keys))()
         found = (ctypes.c_int * len(keys))()
         _raise_status(
