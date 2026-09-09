@@ -102,11 +102,6 @@ std::optional<std::string> AtomicDatabase::get(const std::string& key) const {
     return impl_->db.get(key);
 }
 
-std::vector<std::optional<std::string>> AtomicDatabase::get_many(
-    const std::vector<std::string>& keys) const {
-    return impl_->db.get_many(keys);
-}
-
 bool AtomicDatabase::contains(const std::string& key) const {
     return static_cast<bool>(get(key));
 }
