@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "resolutive-db"
-version = "1.1.0"
-description = "Resolutive Database Engine (BDR) v1.1 stable engine with atomic BDW4 batches"
+version = "1.2.0rc1"
+description = "Resolutive Database Engine (BDR) v1.2 RC1 with atomic Python bridge and bulk-read optimizations"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
