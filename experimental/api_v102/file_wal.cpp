@@ -1,6 +1,7 @@
 #include "file_wal.hpp"
 
 #include <cerrno>
+#include <chrono>
 #include <fcntl.h>
 #include <fstream>
 #include <stdexcept>
@@ -11,26 +12,11 @@ namespace bdr::v102 {
 namespace fs = std::filesystem;
 
 namespace {
+using Clock = std::chrono::steady_clock;
 
-std::uint32_t be32(const std::uint8_t* p) {
-    return (std::uint32_t(p[0]) << 24) | (std::uint32_t(p[1]) << 16) |
-           (std::uint32_t(p[2]) << 8) | std::uint32_t(p[3]);
-}
-
-std::size_t count_replayed_operations(const std::vector<std::uint8_t>& bytes,
-                                      std::size_t last_good) {
-    std::size_t operations = 0;
-    std::size_t pos = 0;
-    while (pos < last_good) {
-        if (last_good - pos < 24) throw std::runtime_error("V102 telemetry frame truncated");
-        const auto total = static_cast<std::size_t>(be32(bytes.data() + pos));
-        if (total == 0 || pos + total > last_good)
-            throw std::runtime_error("V102 telemetry frame bounds invalid");
-        operations += static_cast<std::size_t>(be32(bytes.data() + pos + 20));
-        pos += total;
-    }
-    if (pos != last_good) throw std::runtime_error("V102 telemetry replay boundary mismatch");
-    return operations;
+std::uint64_t elapsed_us(Clock::time_point start, Clock::time_point end) {
+    return static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
 }
 
 static void write_all(int fd, const std::uint8_t* data, std::size_t size) {
@@ -65,15 +51,19 @@ FileReplayResult recover_file(const fs::path& path,
                               std::map<std::string, std::string>& state,
                               std::uint64_t initial_sequence,
                               bool repair_torn_tail) {
-    if (!fs::exists(path)) return {initial_sequence, 0, 0, false, 0, 0};
+    if (!fs::exists(path)) return {initial_sequence, 0, 0, false, 0, 0, 0, 0};
 
+    const auto read_start = Clock::now();
     std::ifstream input(path, std::ios::binary);
     if (!input) throw std::runtime_error("V102 WAL read open failed");
     std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(input)),
                                     std::istreambuf_iterator<char>());
+    const auto read_end = Clock::now();
 
+    const auto replay_start = Clock::now();
     auto replay = v101::replay(bytes, state, initial_sequence);
-    const auto replayed_operations = count_replayed_operations(bytes, replay.last_good);
+    const auto replay_end = Clock::now();
+
     bool repaired = false;
     if (replay.torn_tail && repair_torn_tail) {
         std::error_code ec;
@@ -87,7 +77,9 @@ FileReplayResult recover_file(const fs::path& path,
             static_cast<std::uintmax_t>(replay.last_good),
             repaired,
             static_cast<std::uintmax_t>(bytes.size()),
-            replayed_operations};
+            replay.replayed_operations,
+            elapsed_us(read_start, read_end),
+            elapsed_us(replay_start, replay_end)};
 }
 
 } // namespace bdr::v102
