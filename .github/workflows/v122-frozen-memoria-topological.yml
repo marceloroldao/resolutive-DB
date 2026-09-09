@@ -1,0 +1,58 @@
+name: V122 Frozen Memoria Topological Benchmark
+
+on:
+  push:
+    branches:
+      - experiment/v1.2-topological-telemetry
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  frozen-memoria-topological:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Resolutive-DB experiment
+        uses: actions/checkout@v4
+
+      - name: Checkout validated Memoria.ia benchmark head
+        uses: actions/checkout@v4
+        with:
+          repository: marceloroldao/memoria.ia
+          ref: 99a1585d497b98f0fc6f360ec8f39e6771452827
+          path: memoria-source
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install native and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ zlib1g-dev
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install -e './memoria-source[product,test]'
+
+      - name: Build shared atomic ABI with telemetry
+        run: |
+          cmake -S experimental/api_v86 -B build-v122 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-v122 --target bdr_atomic_c_api_shared v120_atomic_diagnostics -j2
+
+      - name: Validate native telemetry smoke gate
+        run: ./build-v122/v120_atomic_diagnostics
+
+      - name: Run frozen Memoria 24/240/1200 decomposition
+        env:
+          BDR_ATOMIC_LIBRARY: ${{ github.workspace }}/build-v122/libbdr_atomic_c_api.so
+        run: |
+          python benchmarks/v122_frozen_memoria_topological.py \
+            --library "$BDR_ATOMIC_LIBRARY" \
+            | tee v122-frozen-memoria-topological.json
+
+      - name: Upload V122 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v122-frozen-memoria-topological
+          path: v122-frozen-memoria-topological.json
