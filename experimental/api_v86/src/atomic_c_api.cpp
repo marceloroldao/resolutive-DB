@@ -5,6 +5,7 @@
 #include <cstring>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -163,6 +164,69 @@ extern "C" bdr_atomic_c_status bdr_atomic_c_get_many(
         return BDR_ATOMIC_C_OK;
     } catch (...) {
         for (size_t i = 0; i < key_count; ++i) std::free(out_values[i].data);
+        return BDR_ATOMIC_C_IO_ERROR;
+    }
+}
+
+extern "C" bdr_atomic_c_status bdr_atomic_c_get_many_packed(
+    bdr_atomic_c_handle *handle,
+    const bdr_atomic_c_key *keys,
+    size_t key_count,
+    bdr_atomic_c_buffer *out_arena,
+    size_t *out_offsets,
+    size_t *out_sizes,
+    int *out_found) {
+    if (!handle || !handle->db || !keys || key_count == 0 || !out_arena ||
+        !out_offsets || !out_sizes || !out_found)
+        return BDR_ATOMIC_C_INVALID_ARGUMENT;
+
+    out_arena->data = nullptr;
+    out_arena->size = 0;
+    for (size_t i = 0; i < key_count; ++i) {
+        out_offsets[i] = 0;
+        out_sizes[i] = 0;
+        out_found[i] = 0;
+    }
+
+    try {
+        std::vector<std::optional<std::string>> values;
+        values.reserve(key_count);
+        size_t total_size = 0;
+
+        for (size_t i = 0; i < key_count; ++i) {
+            if (!keys[i].data || keys[i].size == 0)
+                return BDR_ATOMIC_C_INVALID_ARGUMENT;
+            auto value = handle->db->get(bytes_to_string(keys[i].data, keys[i].size));
+            if (value) {
+                if (value->size() > static_cast<size_t>(-1) - total_size)
+                    return BDR_ATOMIC_C_INTERNAL_ERROR;
+                total_size += value->size();
+            }
+            values.push_back(std::move(value));
+        }
+
+        if (total_size != 0) {
+            out_arena->data = static_cast<uint8_t *>(std::malloc(total_size));
+            if (!out_arena->data) return BDR_ATOMIC_C_INTERNAL_ERROR;
+        }
+        out_arena->size = total_size;
+
+        size_t cursor = 0;
+        for (size_t i = 0; i < key_count; ++i) {
+            if (!values[i]) continue;
+            out_found[i] = 1;
+            out_offsets[i] = cursor;
+            out_sizes[i] = values[i]->size();
+            if (!values[i]->empty()) {
+                std::memcpy(out_arena->data + cursor, values[i]->data(), values[i]->size());
+                cursor += values[i]->size();
+            }
+        }
+        return BDR_ATOMIC_C_OK;
+    } catch (...) {
+        std::free(out_arena->data);
+        out_arena->data = nullptr;
+        out_arena->size = 0;
         return BDR_ATOMIC_C_IO_ERROR;
     }
 }
