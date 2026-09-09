@@ -158,6 +158,31 @@ extern "C" bdr_atomic_c_status bdr_atomic_c_durable_sequence(bdr_atomic_c_handle
     try { *out_sequence = handle->db->durable_sequence(); return BDR_ATOMIC_C_OK; } catch (...) { return BDR_ATOMIC_C_IO_ERROR; }
 }
 
+extern "C" bdr_atomic_c_status bdr_atomic_c_diagnostics_get(
+    bdr_atomic_c_handle *handle,
+    bdr_atomic_c_diagnostics *out_diagnostics) {
+    if (!handle || !handle->db || !out_diagnostics) return BDR_ATOMIC_C_INVALID_ARGUMENT;
+    try {
+        const auto d = handle->db->diagnostics();
+        out_diagnostics->wal_bytes = static_cast<uint64_t>(d.wal_bytes);
+        out_diagnostics->replayed_batches = d.replayed_batches;
+        out_diagnostics->replayed_operations = d.replayed_operations;
+        out_diagnostics->legacy_records = d.legacy_records;
+        out_diagnostics->resident_records = d.resident_records;
+        out_diagnostics->legacy_sequence = d.legacy_sequence;
+        out_diagnostics->last_sequence = d.last_sequence;
+        out_diagnostics->durable_sequence = d.durable_sequence;
+        out_diagnostics->repaired_torn_tail = d.repaired_torn_tail ? 1 : 0;
+        out_diagnostics->legacy_load_us = d.legacy_load_us;
+        out_diagnostics->wal_read_us = d.wal_read_us;
+        out_diagnostics->wal_decode_apply_us = d.wal_decode_apply_us;
+        out_diagnostics->wal_replay_us = d.wal_replay_us;
+        return BDR_ATOMIC_C_OK;
+    } catch (...) {
+        return BDR_ATOMIC_C_IO_ERROR;
+    }
+}
+
 extern "C" bdr_atomic_c_status bdr_atomic_c_integrity_check(bdr_atomic_c_handle *handle) {
     if (!handle || !handle->db) return BDR_ATOMIC_C_INVALID_ARGUMENT;
     try {
