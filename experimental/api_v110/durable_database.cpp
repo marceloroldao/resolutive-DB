@@ -150,6 +150,19 @@ std::optional<std::string> DurableDatabase::get(const std::string& key) const {
     return it->second;
 }
 
+std::vector<std::optional<std::string>> DurableDatabase::get_many(
+    const std::vector<std::string>& keys) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<std::optional<std::string>> values;
+    values.reserve(keys.size());
+    for (const auto& key : keys) {
+        const auto it = state_.find(key);
+        if (it == state_.end()) values.emplace_back(std::nullopt);
+        else values.emplace_back(it->second);
+    }
+    return values;
+}
+
 std::uint64_t DurableDatabase::last_sequence() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return last_sequence_;
