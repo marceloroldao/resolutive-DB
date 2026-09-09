@@ -28,6 +28,22 @@ BatchResult to_public(v110::BatchResult r) {
     return {r.sequence, r.operations, r.durable};
 }
 
+AtomicDiagnostics to_public(v110::Diagnostics d) {
+    AtomicDiagnostics out;
+    out.wal_bytes = d.wal_bytes;
+    out.replayed_batches = d.replayed_batches;
+    out.replayed_operations = d.replayed_operations;
+    out.legacy_records = d.legacy_records;
+    out.resident_records = d.resident_records;
+    out.legacy_sequence = d.legacy_sequence;
+    out.last_sequence = d.last_sequence;
+    out.durable_sequence = d.durable_sequence;
+    out.repaired_torn_tail = d.repaired_torn_tail;
+    out.legacy_load_us = d.legacy_load_us;
+    out.wal_replay_us = d.wal_replay_us;
+    return out;
+}
+
 } // namespace
 
 class AtomicDatabase::Impl {
@@ -92,5 +108,6 @@ void AtomicDatabase::sync() { impl_->db.sync(); }
 std::uint64_t AtomicDatabase::last_sequence() const { return impl_->db.last_sequence(); }
 std::uint64_t AtomicDatabase::durable_sequence() const { return impl_->db.durable_sequence(); }
 std::size_t AtomicDatabase::size() const { return impl_->db.size(); }
+AtomicDiagnostics AtomicDatabase::diagnostics() const { return to_public(impl_->db.diagnostics()); }
 
 } // namespace bdr
