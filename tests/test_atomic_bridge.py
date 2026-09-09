@@ -89,6 +89,35 @@ def test_bulk_get_preserves_order_missing_empty_binary_and_utf8(tmp_path: Path):
         db.close()
 
 
+def test_bulk_get_falls_back_when_packed_symbol_is_unavailable(tmp_path: Path):
+    class LegacyLibraryView:
+        def __init__(self, target):
+            self._target = target
+
+        def __getattr__(self, name):
+            if name == "bdr_atomic_c_get_many_packed":
+                raise AttributeError(name)
+            return getattr(self._target, name)
+
+    db = AtomicBDR.open(tmp_path / "bulk-get-legacy-view")
+    native_lib = db._lib
+    try:
+        db.put_many(
+            [
+                (b"bin\x00key", b"\x00\xffvalue"),
+                ("ação", "temporal"),
+                ("vazio", b""),
+            ]
+        )
+        expected = [b"\x00\xffvalue", None, b"temporal", b"", b"\x00\xffvalue"]
+        db._lib = LegacyLibraryView(native_lib)
+        assert not hasattr(db._lib, "bdr_atomic_c_get_many_packed")
+        assert db.get_many([b"bin\x00key", "missing", "ação", "vazio", b"bin\x00key"]) == expected
+    finally:
+        db._lib = native_lib
+        db.close()
+
+
 def test_async_then_sync_advances_durable_boundary(tmp_path: Path):
     db = AtomicBDR.open(tmp_path / "async-bdr")
     try:
