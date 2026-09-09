@@ -40,6 +40,8 @@ AtomicDiagnostics to_public(v110::Diagnostics d) {
     out.durable_sequence = d.durable_sequence;
     out.repaired_torn_tail = d.repaired_torn_tail;
     out.legacy_load_us = d.legacy_load_us;
+    out.wal_read_us = d.wal_read_us;
+    out.wal_decode_apply_us = d.wal_decode_apply_us;
     out.wal_replay_us = d.wal_replay_us;
     return out;
 }
