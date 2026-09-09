@@ -39,6 +39,11 @@ typedef struct bdr_atomic_c_operation {
     size_t value_size;
 } bdr_atomic_c_operation;
 
+typedef struct bdr_atomic_c_key {
+    const void *data;
+    size_t size;
+} bdr_atomic_c_key;
+
 typedef struct bdr_atomic_c_buffer {
     uint8_t *data;
     size_t size;
@@ -87,6 +92,13 @@ bdr_atomic_c_status bdr_atomic_c_get(
     const void *key,
     size_t key_size,
     bdr_atomic_c_buffer *out_value);
+/* Experimental additive bulk-read entry point. Input order is preserved. */
+bdr_atomic_c_status bdr_atomic_c_get_many(
+    bdr_atomic_c_handle *handle,
+    const bdr_atomic_c_key *keys,
+    size_t key_count,
+    bdr_atomic_c_buffer *out_values,
+    int *out_found);
 bdr_atomic_c_status bdr_atomic_c_exists(
     bdr_atomic_c_handle *handle,
     const void *key,
