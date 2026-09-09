@@ -40,10 +40,10 @@ jobs:
           cmake -S experimental/api_v86 -B build-v125 -DCMAKE_BUILD_TYPE=Release
           cmake --build build-v125 --target bdr_atomic_c_api_shared -j2
 
-      - name: Validate existing bulk-read bridge
+      - name: Validate packed-key bulk-read bridge
         env:
           BDR_ATOMIC_LIBRARY: ${{ github.workspace }}/build-v125/libbdr_atomic_c_api.so
-        run: python -m pytest -q tests/test_atomic_bridge.py
+        run: python -m pytest -q tests/test_atomic_bridge.py tests/test_atomic_bridge_packed_keys.py
 
       - name: Run packed key marshalling benchmark
         env:
