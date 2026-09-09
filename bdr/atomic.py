@@ -205,6 +205,17 @@ def _configure_library(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_int),
         ]
         lib.bdr_atomic_c_get_many.restype = ctypes.c_int
+    if hasattr(lib, "bdr_atomic_c_get_many_packed"):
+        lib.bdr_atomic_c_get_many_packed.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(_CKey),
+            ctypes.c_size_t,
+            ctypes.POINTER(_CBuffer),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.POINTER(ctypes.c_int),
+        ]
+        lib.bdr_atomic_c_get_many_packed.restype = ctypes.c_int
     lib.bdr_atomic_c_sync.argtypes = [ctypes.c_void_p]
     lib.bdr_atomic_c_sync.restype = ctypes.c_int
     lib.bdr_atomic_c_last_sequence.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint64)]
@@ -315,6 +326,39 @@ class AtomicBDR:
             c_keys[index].data = base_address + offset
             c_keys[index].size = len(raw)
             offset += len(raw)
+
+        if hasattr(self._lib, "bdr_atomic_c_get_many_packed"):
+            out_arena = _CBuffer()
+            offsets = (ctypes.c_size_t * len(keys))()
+            sizes = (ctypes.c_size_t * len(keys))()
+            found = (ctypes.c_int * len(keys))()
+            _raise_status(
+                self._lib.bdr_atomic_c_get_many_packed(
+                    self._handle,
+                    c_keys,
+                    len(keys),
+                    ctypes.byref(out_arena),
+                    offsets,
+                    sizes,
+                    found,
+                ),
+                "get_many_packed",
+            )
+            values: list[bytes | None] = []
+            try:
+                arena_address = ctypes.cast(out_arena.data, ctypes.c_void_p).value or 0
+                for index in range(len(keys)):
+                    if not found[index]:
+                        values.append(None)
+                    elif sizes[index] == 0:
+                        values.append(b"")
+                    else:
+                        values.append(
+                            ctypes.string_at(arena_address + offsets[index], sizes[index])
+                        )
+                return values
+            finally:
+                self._lib.bdr_atomic_c_free_buffer(out_arena)
 
         out_values = (_CBuffer * len(keys))()
         found = (ctypes.c_int * len(keys))()
