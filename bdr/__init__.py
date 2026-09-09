@@ -13,7 +13,7 @@ from .atomic import (
 from .core import BancoDeDadosResolutivo, EncoderResolutivo, EntidadeResolutiva
 from .persistent_engine import PersistentBDR, RecoveryError
 
-__version__ = "1.1.0"
+__version__ = "1.2.0rc1"
 
 __all__ = [
     "AtomicBDR",
