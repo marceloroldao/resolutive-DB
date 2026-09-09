@@ -30,7 +30,11 @@ add_library(bdr_v1_candidate STATIC
     ../api_v102/file_wal.cpp
     ../api_v101/atomic_wal.cpp
 )
-set_target_properties(bdr_v1_candidate PROPERTIES EXPORT_NAME bdr OUTPUT_NAME bdr)
+set_target_properties(bdr_v1_candidate PROPERTIES
+    EXPORT_NAME bdr
+    OUTPUT_NAME bdr
+    POSITION_INDEPENDENT_CODE ON
+)
 target_include_directories(bdr_v1_candidate
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -61,6 +65,22 @@ target_include_directories(bdr_atomic_c_api
 )
 target_link_libraries(bdr_atomic_c_api PUBLIC bdr_v1_candidate)
 add_library(bdr::atomic_c_api ALIAS bdr_atomic_c_api)
+
+# Shared form of the same ABI for Python ctypes and other dynamic consumers.
+# It contains no new storage semantics; all operations delegate to the same
+# bdr::AtomicDatabase implementation used by the static/mobile boundary.
+add_library(bdr_atomic_c_api_shared SHARED src/atomic_c_api.cpp)
+set_target_properties(bdr_atomic_c_api_shared PROPERTIES
+    EXPORT_NAME atomic_c_api_shared
+    OUTPUT_NAME bdr_atomic_c_api
+)
+target_include_directories(bdr_atomic_c_api_shared
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+target_link_libraries(bdr_atomic_c_api_shared PRIVATE bdr_v1_candidate)
+add_library(bdr::atomic_c_api_shared ALIAS bdr_atomic_c_api_shared)
 
 add_executable(v1_candidate_contract test_contract.cpp)
 target_link_libraries(v1_candidate_contract PRIVATE bdr_v1_candidate)
@@ -100,7 +120,7 @@ target_link_libraries(v1_compat_candidate PRIVATE bdr_v1_candidate)
 add_executable(v1_compat_fallback test_v1_cross_compat.cpp)
 target_link_libraries(v1_compat_fallback PRIVATE bdr_v1_fallback)
 
-install(TARGETS bdr_v1_candidate bdr_c_api bdr_atomic_c_api
+install(TARGETS bdr_v1_candidate bdr_c_api bdr_atomic_c_api bdr_atomic_c_api_shared
     EXPORT bdrTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
