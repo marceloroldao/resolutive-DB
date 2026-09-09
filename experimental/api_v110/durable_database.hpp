@@ -36,6 +36,8 @@ struct Diagnostics {
     std::uint64_t durable_sequence = 0;
     bool repaired_torn_tail = false;
     std::uint64_t legacy_load_us = 0;
+    std::uint64_t wal_read_us = 0;
+    std::uint64_t wal_decode_apply_us = 0;
     std::uint64_t wal_replay_us = 0;
 };
 
