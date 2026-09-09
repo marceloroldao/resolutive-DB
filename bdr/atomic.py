@@ -88,6 +88,10 @@ class _COperation(ctypes.Structure):
     ]
 
 
+class _CKey(ctypes.Structure):
+    _fields_ = [("data", ctypes.c_void_p), ("size", ctypes.c_size_t)]
+
+
 class _CBuffer(ctypes.Structure):
     _fields_ = [("data", ctypes.POINTER(ctypes.c_uint8)), ("size", ctypes.c_size_t)]
 
@@ -192,6 +196,15 @@ def _configure_library(lib: ctypes.CDLL) -> None:
         ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t, ctypes.POINTER(_CBuffer)
     ]
     lib.bdr_atomic_c_get.restype = ctypes.c_int
+    if hasattr(lib, "bdr_atomic_c_get_many"):
+        lib.bdr_atomic_c_get_many.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(_CKey),
+            ctypes.c_size_t,
+            ctypes.POINTER(_CBuffer),
+            ctypes.POINTER(ctypes.c_int),
+        ]
+        lib.bdr_atomic_c_get_many.restype = ctypes.c_int
     lib.bdr_atomic_c_sync.argtypes = [ctypes.c_void_p]
     lib.bdr_atomic_c_sync.restype = ctypes.c_int
     lib.bdr_atomic_c_last_sequence.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint64)]
@@ -281,6 +294,44 @@ class AtomicBDR:
             return ctypes.string_at(out.data, out.size)
         finally:
             self._lib.bdr_atomic_c_free_buffer(out)
+
+    def get_many(self, keys: Sequence[str | bytes]) -> list[bytes | None]:
+        self._require_open()
+        if not keys:
+            return []
+        if not hasattr(self._lib, "bdr_atomic_c_get_many"):
+            return [self.get(key) for key in keys]
+        c_keys = (_CKey * len(keys))()
+        keepalive = []
+        for index, key in enumerate(keys):
+            raw = _to_bytes(key, field="key")
+            if not raw:
+                raise AtomicBDRInvalidArgument("key must not be empty")
+            buf = ctypes.create_string_buffer(raw, len(raw))
+            keepalive.append(buf)
+            c_keys[index].data = ctypes.cast(buf, ctypes.c_void_p)
+            c_keys[index].size = len(raw)
+        out_values = (_CBuffer * len(keys))()
+        found = (ctypes.c_int * len(keys))()
+        _raise_status(
+            self._lib.bdr_atomic_c_get_many(
+                self._handle, c_keys, len(keys), out_values, found
+            ),
+            "get_many",
+        )
+        values: list[bytes | None] = []
+        try:
+            for index in range(len(keys)):
+                if not found[index]:
+                    values.append(None)
+                elif out_values[index].size == 0:
+                    values.append(b"")
+                else:
+                    values.append(ctypes.string_at(out_values[index].data, out_values[index].size))
+            return values
+        finally:
+            for item in out_values:
+                self._lib.bdr_atomic_c_free_buffer(item)
 
     def write_batch(
         self,
