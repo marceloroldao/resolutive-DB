@@ -66,6 +66,29 @@ def test_binary_utf8_batch_sequence_and_reopen(tmp_path: Path):
         reopened.close()
 
 
+def test_bulk_get_preserves_order_missing_empty_binary_and_utf8(tmp_path: Path):
+    db = AtomicBDR.open(tmp_path / "bulk-get")
+    try:
+        db.put_many(
+            [
+                ("a", b"A"),
+                ("vazio", b""),
+                ("nó", b"\x00\xffpayload"),
+                ("ação", "temporal"),
+            ]
+        )
+        assert db.get_many(["a", "missing", "vazio", "nó", "ação"]) == [
+            b"A",
+            None,
+            b"",
+            b"\x00\xffpayload",
+            "temporal".encode("utf-8"),
+        ]
+        assert db.get_many([]) == []
+    finally:
+        db.close()
+
+
 def test_async_then_sync_advances_durable_boundary(tmp_path: Path):
     db = AtomicBDR.open(tmp_path / "async-bdr")
     try:
