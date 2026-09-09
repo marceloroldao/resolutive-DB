@@ -8,7 +8,14 @@
 extern "C" {
 #endif
 
-#define BDR_ATOMIC_C_ABI_VERSION 1u
+/*
+ * Atomic C ABI v2 is additive relative to ABI v1.
+ * ABI v1 consumers remain supported by preserving all original entry points.
+ * ABI v2 adds selectable durability, bulk reads, packed bulk reads and
+ * experimental diagnostics. Consumers that can run against either version
+ * should feature-detect additive symbols rather than assume their presence.
+ */
+#define BDR_ATOMIC_C_ABI_VERSION 2u
 
 typedef struct bdr_atomic_c_handle bdr_atomic_c_handle;
 
@@ -80,7 +87,7 @@ bdr_atomic_c_status bdr_atomic_c_write_batch(
     const bdr_atomic_c_operation *operations,
     size_t operation_count,
     bdr_atomic_c_batch_result *out_result);
-/* Additive selectable-durability entry point; atomicity is unchanged. */
+/* ABI v2 additive selectable-durability entry point; atomicity is unchanged. */
 bdr_atomic_c_status bdr_atomic_c_write_batch_with_durability(
     bdr_atomic_c_handle *handle,
     const bdr_atomic_c_operation *operations,
@@ -92,7 +99,7 @@ bdr_atomic_c_status bdr_atomic_c_get(
     const void *key,
     size_t key_size,
     bdr_atomic_c_buffer *out_value);
-/* Experimental additive bulk-read entry point. Input order is preserved. */
+/* ABI v2 additive bulk-read entry point. Input order is preserved. */
 bdr_atomic_c_status bdr_atomic_c_get_many(
     bdr_atomic_c_handle *handle,
     const bdr_atomic_c_key *keys,
@@ -100,9 +107,9 @@ bdr_atomic_c_status bdr_atomic_c_get_many(
     bdr_atomic_c_buffer *out_values,
     int *out_found);
 /*
- * Experimental v1.2 measurement probe. All found values are copied into one
- * caller-freed arena. out_offsets/out_sizes/out_found each have key_count slots.
- * Missing and empty values are distinguished by out_found.
+ * ABI v2 additive packed bulk-read fast path. All found values are copied into
+ * one caller-freed arena. out_offsets/out_sizes/out_found each have key_count
+ * slots. Missing and empty values are distinguished by out_found.
  */
 bdr_atomic_c_status bdr_atomic_c_get_many_packed(
     bdr_atomic_c_handle *handle,
@@ -120,6 +127,7 @@ bdr_atomic_c_status bdr_atomic_c_exists(
 bdr_atomic_c_status bdr_atomic_c_sync(bdr_atomic_c_handle *handle);
 bdr_atomic_c_status bdr_atomic_c_last_sequence(bdr_atomic_c_handle *handle, uint64_t *out_sequence);
 bdr_atomic_c_status bdr_atomic_c_durable_sequence(bdr_atomic_c_handle *handle, uint64_t *out_sequence);
+/* Experimental ABI v2 diagnostics; not a stable persistence-format contract. */
 bdr_atomic_c_status bdr_atomic_c_diagnostics_get(
     bdr_atomic_c_handle *handle,
     bdr_atomic_c_diagnostics *out_diagnostics);
