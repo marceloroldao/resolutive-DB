@@ -99,6 +99,19 @@ bdr_atomic_c_status bdr_atomic_c_get_many(
     size_t key_count,
     bdr_atomic_c_buffer *out_values,
     int *out_found);
+/*
+ * Experimental v1.2 measurement probe. All found values are copied into one
+ * caller-freed arena. out_offsets/out_sizes/out_found each have key_count slots.
+ * Missing and empty values are distinguished by out_found.
+ */
+bdr_atomic_c_status bdr_atomic_c_get_many_packed(
+    bdr_atomic_c_handle *handle,
+    const bdr_atomic_c_key *keys,
+    size_t key_count,
+    bdr_atomic_c_buffer *out_arena,
+    size_t *out_offsets,
+    size_t *out_sizes,
+    int *out_found);
 bdr_atomic_c_status bdr_atomic_c_exists(
     bdr_atomic_c_handle *handle,
     const void *key,
