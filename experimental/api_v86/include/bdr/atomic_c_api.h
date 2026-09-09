@@ -50,6 +50,23 @@ typedef struct bdr_atomic_c_batch_result {
     int durable;
 } bdr_atomic_c_batch_result;
 
+/* Experimental additive diagnostics. Not a persistence-format contract. */
+typedef struct bdr_atomic_c_diagnostics {
+    uint64_t wal_bytes;
+    size_t replayed_batches;
+    size_t replayed_operations;
+    size_t legacy_records;
+    size_t resident_records;
+    uint64_t legacy_sequence;
+    uint64_t last_sequence;
+    uint64_t durable_sequence;
+    int repaired_torn_tail;
+    uint64_t legacy_load_us;
+    uint64_t wal_read_us;
+    uint64_t wal_decode_apply_us;
+    uint64_t wal_replay_us;
+} bdr_atomic_c_diagnostics;
+
 uint32_t bdr_atomic_c_abi_version(void);
 bdr_atomic_c_status bdr_atomic_c_open(const char *directory, bdr_atomic_c_handle **out_handle);
 /* Backward-compatible v1 entry point: BatchSync remains the default. */
@@ -78,6 +95,9 @@ bdr_atomic_c_status bdr_atomic_c_exists(
 bdr_atomic_c_status bdr_atomic_c_sync(bdr_atomic_c_handle *handle);
 bdr_atomic_c_status bdr_atomic_c_last_sequence(bdr_atomic_c_handle *handle, uint64_t *out_sequence);
 bdr_atomic_c_status bdr_atomic_c_durable_sequence(bdr_atomic_c_handle *handle, uint64_t *out_sequence);
+bdr_atomic_c_status bdr_atomic_c_diagnostics_get(
+    bdr_atomic_c_handle *handle,
+    bdr_atomic_c_diagnostics *out_diagnostics);
 bdr_atomic_c_status bdr_atomic_c_integrity_check(bdr_atomic_c_handle *handle);
 void bdr_atomic_c_free_buffer(bdr_atomic_c_buffer buffer);
 void bdr_atomic_c_close(bdr_atomic_c_handle *handle);
