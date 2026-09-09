@@ -1,11 +1,19 @@
 name: Android NDK C ABI
 
 on:
+  push:
+    branches:
+      - experiment/v1.2-topological-telemetry
+    paths:
+      - "CMakeLists.txt"
+      - "experimental/api_v86/**"
+      - ".github/workflows/android-ndk.yml"
   pull_request:
     branches:
       - main
       - experiment/v1.2-python-atomic-bridge
     paths:
+      - "CMakeLists.txt"
       - "experimental/api_v86/**"
       - ".github/workflows/android-ndk.yml"
   workflow_dispatch:
