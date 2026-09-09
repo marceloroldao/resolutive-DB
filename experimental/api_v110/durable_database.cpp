@@ -38,14 +38,13 @@ DurableDatabase::DurableDatabase(std::filesystem::path legacy_directory,
         auto recovered = v102::recover_file(bdw4_path_, state_, last_sequence_, true);
         const auto replay_end = Clock::now();
         last_sequence_ = recovered.last_sequence;
-        // Any complete frames recovered after reopening are the persisted prefix
-        // available to this process. The API cannot infer an ACK that a previous
-        // process did or did not receive, only the recoverable durable prefix.
         durable_sequence_ = recovered.last_sequence;
         diagnostics_.wal_bytes = recovered.bytes_read;
         diagnostics_.replayed_batches = recovered.committed_batches;
         diagnostics_.replayed_operations = recovered.replayed_operations;
         diagnostics_.repaired_torn_tail = recovered.repaired_torn_tail;
+        diagnostics_.wal_read_us = recovered.read_us;
+        diagnostics_.wal_decode_apply_us = recovered.decode_apply_us;
         diagnostics_.wal_replay_us = elapsed_us(replay_start, replay_end);
     }
 
@@ -83,7 +82,6 @@ BatchResult DurableDatabase::write_batch(std::vector<v101::Operation> operations
     const bool sync_now = durability != DurabilityMode::Async;
     v102::append_batch(bdw4_path_, sequence, operations, sync_now);
 
-    // State becomes visible only after the complete frame append returned.
     apply(state_, operations);
     last_sequence_ = sequence;
     if (sync_now) durable_sequence_ = sequence;
