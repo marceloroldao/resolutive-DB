@@ -43,6 +43,11 @@ jobs:
       - name: Validate native telemetry smoke gate
         run: ./build-v122/v120_atomic_diagnostics
 
+      - name: Validate Python atomic bridge including bulk get
+        env:
+          BDR_ATOMIC_LIBRARY: ${{ github.workspace }}/build-v122/libbdr_atomic_c_api.so
+        run: python -m pytest -q tests/test_atomic_bridge.py
+
       - name: Run frozen Memoria 24/240/1200 decomposition
         env:
           BDR_ATOMIC_LIBRARY: ${{ github.workspace }}/build-v122/libbdr_atomic_c_api.so
