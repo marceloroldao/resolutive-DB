@@ -17,6 +17,8 @@ struct FileReplayResult {
     bool repaired_torn_tail = false;
     std::uintmax_t bytes_read = 0;
     std::size_t replayed_operations = 0;
+    std::uint64_t read_us = 0;
+    std::uint64_t decode_apply_us = 0;
 };
 
 void append_batch(const std::filesystem::path& path,
