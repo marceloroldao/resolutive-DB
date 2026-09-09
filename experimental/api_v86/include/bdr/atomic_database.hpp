@@ -66,7 +66,6 @@ public:
                            DurabilityMode durability = DurabilityMode::BatchSync);
 
     std::optional<std::string> get(const std::string& key) const;
-    std::vector<std::optional<std::string>> get_many(const std::vector<std::string>& keys) const;
     bool contains(const std::string& key) const;
 
     void sync();
