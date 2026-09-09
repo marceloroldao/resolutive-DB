@@ -63,6 +63,7 @@ public:
     void sync();
 
     std::optional<std::string> get(const std::string& key) const;
+    std::vector<std::optional<std::string>> get_many(const std::vector<std::string>& keys) const;
     std::uint64_t last_sequence() const;
     std::uint64_t durable_sequence() const;
     std::size_t size() const;
