@@ -128,6 +128,45 @@ extern "C" bdr_atomic_c_status bdr_atomic_c_get(
     }
 }
 
+extern "C" bdr_atomic_c_status bdr_atomic_c_get_many(
+    bdr_atomic_c_handle *handle,
+    const bdr_atomic_c_key *keys,
+    size_t key_count,
+    bdr_atomic_c_buffer *out_values,
+    int *out_found) {
+    if (!handle || !handle->db || !keys || key_count == 0 || !out_values || !out_found)
+        return BDR_ATOMIC_C_INVALID_ARGUMENT;
+    for (size_t i = 0; i < key_count; ++i) {
+        out_values[i].data = nullptr;
+        out_values[i].size = 0;
+        out_found[i] = 0;
+    }
+    try {
+        for (size_t i = 0; i < key_count; ++i) {
+            if (!keys[i].data || keys[i].size == 0) {
+                for (size_t j = 0; j < i; ++j) std::free(out_values[j].data);
+                return BDR_ATOMIC_C_INVALID_ARGUMENT;
+            }
+            auto value = handle->db->get(bytes_to_string(keys[i].data, keys[i].size));
+            if (!value) continue;
+            out_found[i] = 1;
+            if (!value->empty()) {
+                out_values[i].data = static_cast<uint8_t *>(std::malloc(value->size()));
+                if (!out_values[i].data) {
+                    for (size_t j = 0; j <= i; ++j) std::free(out_values[j].data);
+                    return BDR_ATOMIC_C_INTERNAL_ERROR;
+                }
+                std::memcpy(out_values[i].data, value->data(), value->size());
+            }
+            out_values[i].size = value->size();
+        }
+        return BDR_ATOMIC_C_OK;
+    } catch (...) {
+        for (size_t i = 0; i < key_count; ++i) std::free(out_values[i].data);
+        return BDR_ATOMIC_C_IO_ERROR;
+    }
+}
+
 extern "C" bdr_atomic_c_status bdr_atomic_c_exists(
     bdr_atomic_c_handle *handle,
     const void *key,
