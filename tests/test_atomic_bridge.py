@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from bdr.atomic import AtomicBDR, BatchResult, DurabilityMode, Operation
+from bdr.atomic import AtomicBDR, AtomicDiagnostics, BatchResult, DurabilityMode, Operation
 
 
 pytestmark = pytest.mark.skipif(
@@ -52,6 +52,16 @@ def test_binary_utf8_batch_sequence_and_reopen(tmp_path: Path):
         assert reopened.get("estado:camisa") == b"preta"
         assert reopened.last_sequence() == last_before_close
         assert reopened.durable_sequence() == durable_before_close
+        diagnostics = reopened.diagnostics()
+        assert isinstance(diagnostics, AtomicDiagnostics)
+        assert diagnostics.replayed_batches == 2
+        assert diagnostics.replayed_operations == 5
+        assert diagnostics.resident_records == 3
+        assert diagnostics.wal_bytes > 0
+        assert diagnostics.last_sequence == last_before_close
+        assert diagnostics.durable_sequence == durable_before_close
+        assert diagnostics.wal_replay_us >= diagnostics.wal_read_us
+        assert diagnostics.wal_replay_us >= diagnostics.wal_decode_apply_us
     finally:
         reopened.close()
 
