@@ -2,29 +2,55 @@
 #include "../api_v102/file_wal.hpp"
 #include "../api_v106/migration.hpp"
 
+#include <chrono>
 #include <fcntl.h>
 #include <stdexcept>
 #include <unistd.h>
 #include <utility>
 
 namespace bdr::v110 {
+namespace {
+using Clock = std::chrono::steady_clock;
+
+std::uint64_t elapsed_us(Clock::time_point start, Clock::time_point end) {
+    return static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+}
+} // namespace
 
 DurableDatabase::DurableDatabase(std::filesystem::path legacy_directory,
                                  std::filesystem::path bdw4_path)
     : bdw4_path_(std::move(bdw4_path)) {
+    const auto legacy_start = Clock::now();
     auto legacy = v106::read_v1_state(legacy_directory);
+    const auto legacy_end = Clock::now();
+
     state_ = std::move(legacy.values);
     last_sequence_ = legacy.sequence;
     durable_sequence_ = legacy.sequence;
 
+    diagnostics_.legacy_records = state_.size();
+    diagnostics_.legacy_sequence = legacy.sequence;
+    diagnostics_.legacy_load_us = elapsed_us(legacy_start, legacy_end);
+
     if (std::filesystem::exists(bdw4_path_)) {
+        const auto replay_start = Clock::now();
         auto recovered = v102::recover_file(bdw4_path_, state_, last_sequence_, true);
+        const auto replay_end = Clock::now();
         last_sequence_ = recovered.last_sequence;
-        // Any complete frames recovered after reopening are the persisted prefix
-        // available to this process. The API cannot infer an ACK that a previous
-        // process did or did not receive, only the recoverable durable prefix.
         durable_sequence_ = recovered.last_sequence;
+        diagnostics_.wal_bytes = recovered.bytes_read;
+        diagnostics_.replayed_batches = recovered.committed_batches;
+        diagnostics_.replayed_operations = recovered.replayed_operations;
+        diagnostics_.repaired_torn_tail = recovered.repaired_torn_tail;
+        diagnostics_.wal_read_us = recovered.read_us;
+        diagnostics_.wal_decode_apply_us = recovered.decode_apply_us;
+        diagnostics_.wal_replay_us = elapsed_us(replay_start, replay_end);
     }
+
+    diagnostics_.resident_records = state_.size();
+    diagnostics_.last_sequence = last_sequence_;
+    diagnostics_.durable_sequence = durable_sequence_;
 }
 
 void DurableDatabase::validate_operations(const std::vector<v101::Operation>& operations,
@@ -56,10 +82,16 @@ BatchResult DurableDatabase::write_batch(std::vector<v101::Operation> operations
     const bool sync_now = durability != DurabilityMode::Async;
     v102::append_batch(bdw4_path_, sequence, operations, sync_now);
 
-    // State becomes visible only after the complete frame append returned.
     apply(state_, operations);
     last_sequence_ = sequence;
     if (sync_now) durable_sequence_ = sequence;
+
+    diagnostics_.resident_records = state_.size();
+    diagnostics_.last_sequence = last_sequence_;
+    diagnostics_.durable_sequence = durable_sequence_;
+    std::error_code ec;
+    if (std::filesystem::exists(bdw4_path_, ec) && !ec)
+        diagnostics_.wal_bytes = std::filesystem::file_size(bdw4_path_, ec);
 
     return {sequence, operations.size(), sync_now};
 }
@@ -98,6 +130,7 @@ void DurableDatabase::sync() {
     if (last_sequence_ == durable_sequence_) return;
     if (!std::filesystem::exists(bdw4_path_)) {
         durable_sequence_ = last_sequence_;
+        diagnostics_.durable_sequence = durable_sequence_;
         return;
     }
 
@@ -107,6 +140,7 @@ void DurableDatabase::sync() {
     ::close(fd);
     if (rc != 0) throw std::runtime_error("V110 fdatasync failed");
     durable_sequence_ = last_sequence_;
+    diagnostics_.durable_sequence = durable_sequence_;
 }
 
 std::optional<std::string> DurableDatabase::get(const std::string& key) const {
@@ -129,6 +163,15 @@ std::uint64_t DurableDatabase::durable_sequence() const {
 std::size_t DurableDatabase::size() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return state_.size();
+}
+
+Diagnostics DurableDatabase::diagnostics() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto out = diagnostics_;
+    out.resident_records = state_.size();
+    out.last_sequence = last_sequence_;
+    out.durable_sequence = durable_sequence_;
+    return out;
 }
 
 } // namespace bdr::v110

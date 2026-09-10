@@ -4,13 +4,25 @@ from pathlib import Path
 
 import pytest
 
-from bdr.atomic import AtomicBDR, BatchResult, DurabilityMode, Operation
+from bdr.atomic import AtomicBDR, AtomicDiagnostics, BatchResult, DurabilityMode, Operation
 
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("BDR_ATOMIC_LIBRARY"),
     reason="BDR_ATOMIC_LIBRARY is required for native bridge integration tests",
 )
+
+
+def test_atomic_abi_v2_is_exposed_by_current_candidate(tmp_path: Path):
+    db = AtomicBDR.open(tmp_path / "abi-v2")
+    try:
+        assert int(db._lib.bdr_atomic_c_abi_version()) == 2
+        assert hasattr(db._lib, "bdr_atomic_c_write_batch_with_durability")
+        assert hasattr(db._lib, "bdr_atomic_c_get_many")
+        assert hasattr(db._lib, "bdr_atomic_c_get_many_packed")
+        assert hasattr(db._lib, "bdr_atomic_c_diagnostics_get")
+    finally:
+        db.close()
 
 
 def test_binary_utf8_batch_sequence_and_reopen(tmp_path: Path):
@@ -52,8 +64,70 @@ def test_binary_utf8_batch_sequence_and_reopen(tmp_path: Path):
         assert reopened.get("estado:camisa") == b"preta"
         assert reopened.last_sequence() == last_before_close
         assert reopened.durable_sequence() == durable_before_close
+        diagnostics = reopened.diagnostics()
+        assert isinstance(diagnostics, AtomicDiagnostics)
+        assert diagnostics.replayed_batches == 2
+        assert diagnostics.replayed_operations == 5
+        assert diagnostics.resident_records == 3
+        assert diagnostics.wal_bytes > 0
+        assert diagnostics.last_sequence == last_before_close
+        assert diagnostics.durable_sequence == durable_before_close
+        assert diagnostics.wal_replay_us >= diagnostics.wal_read_us
+        assert diagnostics.wal_replay_us >= diagnostics.wal_decode_apply_us
     finally:
         reopened.close()
+
+
+def test_bulk_get_preserves_order_missing_empty_binary_and_utf8(tmp_path: Path):
+    db = AtomicBDR.open(tmp_path / "bulk-get")
+    try:
+        db.put_many(
+            [
+                ("a", b"A"),
+                ("vazio", b""),
+                ("nó", b"\x00\xffpayload"),
+                ("ação", "temporal"),
+            ]
+        )
+        assert db.get_many(["a", "missing", "vazio", "nó", "ação"]) == [
+            b"A",
+            None,
+            b"",
+            b"\x00\xffpayload",
+            "temporal".encode("utf-8"),
+        ]
+        assert db.get_many([]) == []
+    finally:
+        db.close()
+
+
+def test_bulk_get_falls_back_when_packed_symbol_is_unavailable(tmp_path: Path):
+    class LegacyLibraryView:
+        def __init__(self, target):
+            self._target = target
+
+        def __getattr__(self, name):
+            if name == "bdr_atomic_c_get_many_packed":
+                raise AttributeError(name)
+            return getattr(self._target, name)
+
+    db = AtomicBDR.open(tmp_path / "bulk-get-legacy-view")
+    native_lib = db._lib
+    try:
+        db.put_many(
+            [
+                (b"bin\x00key", b"\x00\xffvalue"),
+                ("ação", "temporal"),
+                ("vazio", b""),
+            ]
+        )
+        expected = [b"\x00\xffvalue", None, b"temporal", b"", b"\x00\xffvalue"]
+        db._lib = LegacyLibraryView(native_lib)
+        assert not hasattr(db._lib, "bdr_atomic_c_get_many_packed")
+        assert db.get_many([b"bin\x00key", "missing", "ação", "vazio", b"bin\x00key"]) == expected
+    finally:
+        db._lib = native_lib
+        db.close()
 
 
 def test_async_then_sync_advances_durable_boundary(tmp_path: Path):

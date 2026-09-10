@@ -5,6 +5,7 @@
 #include <cstring>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -128,6 +129,108 @@ extern "C" bdr_atomic_c_status bdr_atomic_c_get(
     }
 }
 
+extern "C" bdr_atomic_c_status bdr_atomic_c_get_many(
+    bdr_atomic_c_handle *handle,
+    const bdr_atomic_c_key *keys,
+    size_t key_count,
+    bdr_atomic_c_buffer *out_values,
+    int *out_found) {
+    if (!handle || !handle->db || !keys || key_count == 0 || !out_values || !out_found)
+        return BDR_ATOMIC_C_INVALID_ARGUMENT;
+    for (size_t i = 0; i < key_count; ++i) {
+        out_values[i].data = nullptr;
+        out_values[i].size = 0;
+        out_found[i] = 0;
+    }
+    try {
+        for (size_t i = 0; i < key_count; ++i) {
+            if (!keys[i].data || keys[i].size == 0) {
+                for (size_t j = 0; j < i; ++j) std::free(out_values[j].data);
+                return BDR_ATOMIC_C_INVALID_ARGUMENT;
+            }
+            auto value = handle->db->get(bytes_to_string(keys[i].data, keys[i].size));
+            if (!value) continue;
+            out_found[i] = 1;
+            if (!value->empty()) {
+                out_values[i].data = static_cast<uint8_t *>(std::malloc(value->size()));
+                if (!out_values[i].data) {
+                    for (size_t j = 0; j <= i; ++j) std::free(out_values[j].data);
+                    return BDR_ATOMIC_C_INTERNAL_ERROR;
+                }
+                std::memcpy(out_values[i].data, value->data(), value->size());
+            }
+            out_values[i].size = value->size();
+        }
+        return BDR_ATOMIC_C_OK;
+    } catch (...) {
+        for (size_t i = 0; i < key_count; ++i) std::free(out_values[i].data);
+        return BDR_ATOMIC_C_IO_ERROR;
+    }
+}
+
+extern "C" bdr_atomic_c_status bdr_atomic_c_get_many_packed(
+    bdr_atomic_c_handle *handle,
+    const bdr_atomic_c_key *keys,
+    size_t key_count,
+    bdr_atomic_c_buffer *out_arena,
+    size_t *out_offsets,
+    size_t *out_sizes,
+    int *out_found) {
+    if (!handle || !handle->db || !keys || key_count == 0 || !out_arena ||
+        !out_offsets || !out_sizes || !out_found)
+        return BDR_ATOMIC_C_INVALID_ARGUMENT;
+
+    out_arena->data = nullptr;
+    out_arena->size = 0;
+    for (size_t i = 0; i < key_count; ++i) {
+        out_offsets[i] = 0;
+        out_sizes[i] = 0;
+        out_found[i] = 0;
+    }
+
+    try {
+        std::vector<std::optional<std::string>> values;
+        values.reserve(key_count);
+        size_t total_size = 0;
+
+        for (size_t i = 0; i < key_count; ++i) {
+            if (!keys[i].data || keys[i].size == 0)
+                return BDR_ATOMIC_C_INVALID_ARGUMENT;
+            auto value = handle->db->get(bytes_to_string(keys[i].data, keys[i].size));
+            if (value) {
+                if (value->size() > static_cast<size_t>(-1) - total_size)
+                    return BDR_ATOMIC_C_INTERNAL_ERROR;
+                total_size += value->size();
+            }
+            values.push_back(std::move(value));
+        }
+
+        if (total_size != 0) {
+            out_arena->data = static_cast<uint8_t *>(std::malloc(total_size));
+            if (!out_arena->data) return BDR_ATOMIC_C_INTERNAL_ERROR;
+        }
+        out_arena->size = total_size;
+
+        size_t cursor = 0;
+        for (size_t i = 0; i < key_count; ++i) {
+            if (!values[i]) continue;
+            out_found[i] = 1;
+            out_offsets[i] = cursor;
+            out_sizes[i] = values[i]->size();
+            if (!values[i]->empty()) {
+                std::memcpy(out_arena->data + cursor, values[i]->data(), values[i]->size());
+                cursor += values[i]->size();
+            }
+        }
+        return BDR_ATOMIC_C_OK;
+    } catch (...) {
+        std::free(out_arena->data);
+        out_arena->data = nullptr;
+        out_arena->size = 0;
+        return BDR_ATOMIC_C_IO_ERROR;
+    }
+}
+
 extern "C" bdr_atomic_c_status bdr_atomic_c_exists(
     bdr_atomic_c_handle *handle,
     const void *key,
@@ -156,6 +259,31 @@ extern "C" bdr_atomic_c_status bdr_atomic_c_last_sequence(bdr_atomic_c_handle *h
 extern "C" bdr_atomic_c_status bdr_atomic_c_durable_sequence(bdr_atomic_c_handle *handle, uint64_t *out_sequence) {
     if (!handle || !handle->db || !out_sequence) return BDR_ATOMIC_C_INVALID_ARGUMENT;
     try { *out_sequence = handle->db->durable_sequence(); return BDR_ATOMIC_C_OK; } catch (...) { return BDR_ATOMIC_C_IO_ERROR; }
+}
+
+extern "C" bdr_atomic_c_status bdr_atomic_c_diagnostics_get(
+    bdr_atomic_c_handle *handle,
+    bdr_atomic_c_diagnostics *out_diagnostics) {
+    if (!handle || !handle->db || !out_diagnostics) return BDR_ATOMIC_C_INVALID_ARGUMENT;
+    try {
+        const auto d = handle->db->diagnostics();
+        out_diagnostics->wal_bytes = static_cast<uint64_t>(d.wal_bytes);
+        out_diagnostics->replayed_batches = d.replayed_batches;
+        out_diagnostics->replayed_operations = d.replayed_operations;
+        out_diagnostics->legacy_records = d.legacy_records;
+        out_diagnostics->resident_records = d.resident_records;
+        out_diagnostics->legacy_sequence = d.legacy_sequence;
+        out_diagnostics->last_sequence = d.last_sequence;
+        out_diagnostics->durable_sequence = d.durable_sequence;
+        out_diagnostics->repaired_torn_tail = d.repaired_torn_tail ? 1 : 0;
+        out_diagnostics->legacy_load_us = d.legacy_load_us;
+        out_diagnostics->wal_read_us = d.wal_read_us;
+        out_diagnostics->wal_decode_apply_us = d.wal_decode_apply_us;
+        out_diagnostics->wal_replay_us = d.wal_replay_us;
+        return BDR_ATOMIC_C_OK;
+    } catch (...) {
+        return BDR_ATOMIC_C_IO_ERROR;
+    }
 }
 
 extern "C" bdr_atomic_c_status bdr_atomic_c_integrity_check(bdr_atomic_c_handle *handle) {

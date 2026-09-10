@@ -1,6 +1,7 @@
 # Banco de Dados Resolutivo (BDR)
 
-**Current stable-engine line: BDR v1.1.0 — Released**
+**Current stable-engine line: BDR v1.1.0 — Released**  
+**Current release candidate: BDR v1.2.0-rc1 — Validation candidate, not stable**
 
 **Software DOI (v1.1.0):** 10.5281/zenodo.22130421  
 **Previous software DOI (v1.0.0):** 10.5281/zenodo.22120246  
@@ -10,35 +11,34 @@
 
 Projeto da **ETBRA Tecnologias** para investigar e desenvolver um mecanismo de armazenamento persistente e endereçamento resolutivo determinístico, com particionamento local, integração nativa e recuperação transacional.
 
-> **Status de engenharia:** v1.1.0 é a evolução publicada e compatível da linha estável v1, adicionando batches lógicos atômicos em BDW4 para requisitos de persistência da Memoria.ia. O projeto não reivindica complexidade O(1) estrita no pior caso para o motor completo; resultados de desempenho permanecem específicos ao workload e ao ambiente de teste.
+> **Status de engenharia:** v1.1.0 permanece a linha estável publicada. A v1.2.0-rc1 é um candidato pré-release que adiciona o bridge atômico Python, leitura bulk otimizada, Atomic C ABI v2 e validação contra o workload topológico/temporal congelado da Memoria.ia. Não há redesign do BDW4. Resultados de desempenho continuam específicos ao workload e ao ambiente de teste.
 
-## Estado atual — v1.1.0
+## Estado atual — v1.2.0-rc1 candidato
 
-A v1.1.0 preserva a superfície `bdr::Database` da v1.0 e acrescenta, de forma opt-in:
+O candidato v1.2.0-rc1 preserva a base v1.1 e acrescenta, de forma aditiva:
 
-- API pública `bdr::AtomicDatabase` em `bdr/atomic_database.hpp`;
-- `write_batch`, `put_many` e `erase_many`;
-- atomicidade all-or-nothing para múltiplos registros físicos de uma operação lógica;
-- modos de durabilidade `Async`, `BatchSync` e `PerOperationSync`;
-- `last_sequence()` e `durable_sequence()`;
-- BDW4 como WAL explicitamente versionado para batches atômicos;
-- recuperação de tail BDW4 incompleto até o último boundary válido;
-- ordenação monotônica sob produtores concorrentes;
-- migração side-by-side de BDR3/BDW3 sem reescrever arquivos legados;
-- compatibilidade do target CMake `bdr::bdr` e de consumidores v1.0;
-- validações V101–V112, V99 e V100 concluídas.
+- `bdr.AtomicBDR` para Python;
+- `write_batch`, `put_many`, `erase_many`, `get_many`, `sync`, `last_sequence` e `durable_sequence`;
+- modos `Async`, `BatchSync` e `PerOperationSync`;
+- Atomic C ABI v2;
+- `get_many` com entrada de chaves compactada no bridge Python;
+- fast path opcional `get_many_packed` com uma arena de saída, mantendo fallback para bibliotecas sem o símbolo;
+- preservação exata de bytes, UTF-8, chaves binárias com NUL, missing, valores vazios, duplicatas e ordem;
+- validação Android NDK `arm64-v8a` da superfície candidata;
+- benchmarks V121–V127 contra o workload congelado da Memoria.ia no commit `99a1585d497b98f0fc6f360ec8f39e6771452827`;
+- registro explícito de resultados positivos e negativos de desempenho.
 
-A v1.0.0 permanece uma baseline publicada e imutável. Consulte `RELEASE_NOTES_v1.1.0.md`, `docs/V1_1_PUBLIC_API.md` e `docs/V1_1_RELEASE_CHECKLIST.md`.
+A linha v1.1.0 continua sendo a baseline estável publicada até que o RC seja validado, integrado e publicado formalmente. Consulte `RELEASE_NOTES_v1.2.0-rc1.md` e `docs/V1_2_FREEZE_CANDIDATE_RECORD.md`.
 
 ## Compatibilidade de dados
 
-A linha v1.1 preserva leitura dos formatos da v1.0:
+A linha candidata v1.2 preserva os formatos existentes:
 
 - **BDR3** — snapshots/checkpoints legados;
 - **BDW3** — write-ahead log legado;
-- **BDW4** — novo framing atômico aditivo da v1.1.
+- **BDW4** — framing atômico introduzido na v1.1.
 
-A migração é side-by-side: BDR3/BDW3 existentes permanecem inalterados e novas mutações atômicas são gravadas em BDW4.
+A migração continua side-by-side: BDR3/BDW3 existentes permanecem inalterados e novas mutações atômicas usam BDW4. O trabalho v1.2 não redesenha o formato.
 
 ## Integração C++
 
@@ -55,7 +55,7 @@ Consumidores existentes podem continuar usando:
 #include <bdr/database.hpp>
 ```
 
-Para batches lógicos atômicos da v1.1:
+Para batches lógicos atômicos:
 
 ```cpp
 #include <bdr/atomic_database.hpp>
@@ -65,27 +65,34 @@ A extensão é aditiva; a superfície `bdr::Database` da v1.0 permanece suportad
 
 ## API Python
 
-O pacote raiz `resolutive-db` está versionado como `1.1.0` e preserva a API Python existente:
+O pacote candidato usa versão PEP 440 `1.2.0rc1`:
+
+```python
+from bdr import AtomicBDR, DurabilityMode, Operation
+```
+
+Também permanece disponível a API histórica:
 
 ```python
 from bdr import PersistentBDR
 ```
 
-A nova API atômica validada nesta release é uma superfície C++ opt-in; v1.1.0 não declara um novo contrato de bindings Python para `AtomicDatabase`.
+`AtomicBDR.get_many()` prefere o fast path packed quando o símbolo nativo está disponível e recua automaticamente para o `get_many` legado quando não está, preservando compatibilidade de carregamento.
 
 ## Evidência para Memoria.ia
 
-O workload representativo V112 usa 512 memórias lógicas × 24 registros físicos = 12.288 registros, com uma fronteira de durabilidade por memória lógica.
+O workload congelado usa o codec e a forma topológica/temporal da Memoria.ia validada no commit `99a1585d497b98f0fc6f360ec8f39e6771452827`.
 
-Após a otimização V113 do replay BDW4, a execução registrada mostrou:
+Na rodada de freeze do candidato, em 1.200 observações:
 
-| Métrica | Cadência v1.0 | Atômico v1.1 | Resultado registrado |
-|---|---:|---:|---:|
-| Escrita | 4.918,203 ms | 1.696,555 ms | v1.1 ~2,90× mais rápido |
-| Reopen + verificação total | 29,120 ms | 13,851 ms | v1.1 ~2,10× mais rápido |
-| Espaço em disco | 3.829.120 B | 3.597.664 B | v1.1 menor |
+- rebuild BDR bulk-prefetch: ~82,4 ms;
+- `bulk_get`: ~11,3 ms;
+- cold open BDR: ~12,4 ms;
+- SQLite oracle load: ~57,4 ms;
+- paridade semântica: verde;
+- BDR em disco: ~3,75 MB versus ~6,32 MB no oracle.
 
-Esses números são evidência de regressão específica do runner/workload, não uma alegação de superioridade universal.
+Em escala estendida, 5k e 10k preservaram paridade semântica. No mesmo runner, 5k mostrou rebuild BDR bulk ~313 ms versus SQLite ~380 ms; em 10k, BDR bulk ~815 ms versus SQLite ~592 ms. O cold open BDR em 10k foi ~67 ms, evidenciando que a maior parcela restante está na reconstrução semântica/objetos fora do motor BDR. Esses resultados são workload-specific e o resultado desfavorável de 10k é mantido como evidência.
 
 ## Objetivo de pesquisa
 
@@ -119,22 +126,20 @@ Os benchmarks preservam resultados favoráveis e desfavoráveis ao BDR. Não exi
 
 ## Evidência de robustez
 
-A linha v1.1 passou, entre outros gates:
+O candidato v1.2.0-rc1 passou, entre outros gates:
 
-- V101 framing atômico;
-- V102 WAL em arquivo;
-- V103 commit-boundary failpoints;
-- V104 batch API;
-- V105 concorrência;
-- V106 migração BDR3/BDW3;
-- V107 candidato integrado;
-- V108 stress/soak integrado;
-- V109 matriz de crash recovery;
-- V110 contrato de durabilidade;
-- V111 compatibilidade da API pública/consumidor externo;
-- V112 benchmark representativo Memoria.ia;
 - BDR CI;
-- V99 e V100 evidence closure.
+- V101–V107;
+- V121 telemetry;
+- V122 frozen Memoria topological benchmark;
+- V123 decode decomposition;
+- V124 buffer decomposition;
+- V125 packed-key marshalling;
+- V126 packed-output probe;
+- V127 extended scale 5k/10k;
+- Android NDK C ABI `arm64-v8a`;
+- restart/torn-tail recovery;
+- fallback para biblioteca sem `get_many_packed`.
 
 ## Baselines publicadas
 

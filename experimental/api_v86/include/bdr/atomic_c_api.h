@@ -8,7 +8,14 @@
 extern "C" {
 #endif
 
-#define BDR_ATOMIC_C_ABI_VERSION 1u
+/*
+ * Atomic C ABI v2 is additive relative to ABI v1.
+ * ABI v1 consumers remain supported by preserving all original entry points.
+ * ABI v2 adds selectable durability, bulk reads, packed bulk reads and
+ * experimental diagnostics. Consumers that can run against either version
+ * should feature-detect additive symbols rather than assume their presence.
+ */
+#define BDR_ATOMIC_C_ABI_VERSION 2u
 
 typedef struct bdr_atomic_c_handle bdr_atomic_c_handle;
 
@@ -39,6 +46,11 @@ typedef struct bdr_atomic_c_operation {
     size_t value_size;
 } bdr_atomic_c_operation;
 
+typedef struct bdr_atomic_c_key {
+    const void *data;
+    size_t size;
+} bdr_atomic_c_key;
+
 typedef struct bdr_atomic_c_buffer {
     uint8_t *data;
     size_t size;
@@ -50,6 +62,23 @@ typedef struct bdr_atomic_c_batch_result {
     int durable;
 } bdr_atomic_c_batch_result;
 
+/* Experimental additive diagnostics. Not a persistence-format contract. */
+typedef struct bdr_atomic_c_diagnostics {
+    uint64_t wal_bytes;
+    size_t replayed_batches;
+    size_t replayed_operations;
+    size_t legacy_records;
+    size_t resident_records;
+    uint64_t legacy_sequence;
+    uint64_t last_sequence;
+    uint64_t durable_sequence;
+    int repaired_torn_tail;
+    uint64_t legacy_load_us;
+    uint64_t wal_read_us;
+    uint64_t wal_decode_apply_us;
+    uint64_t wal_replay_us;
+} bdr_atomic_c_diagnostics;
+
 uint32_t bdr_atomic_c_abi_version(void);
 bdr_atomic_c_status bdr_atomic_c_open(const char *directory, bdr_atomic_c_handle **out_handle);
 /* Backward-compatible v1 entry point: BatchSync remains the default. */
@@ -58,7 +87,7 @@ bdr_atomic_c_status bdr_atomic_c_write_batch(
     const bdr_atomic_c_operation *operations,
     size_t operation_count,
     bdr_atomic_c_batch_result *out_result);
-/* Additive selectable-durability entry point; atomicity is unchanged. */
+/* ABI v2 additive selectable-durability entry point; atomicity is unchanged. */
 bdr_atomic_c_status bdr_atomic_c_write_batch_with_durability(
     bdr_atomic_c_handle *handle,
     const bdr_atomic_c_operation *operations,
@@ -70,6 +99,26 @@ bdr_atomic_c_status bdr_atomic_c_get(
     const void *key,
     size_t key_size,
     bdr_atomic_c_buffer *out_value);
+/* ABI v2 additive bulk-read entry point. Input order is preserved. */
+bdr_atomic_c_status bdr_atomic_c_get_many(
+    bdr_atomic_c_handle *handle,
+    const bdr_atomic_c_key *keys,
+    size_t key_count,
+    bdr_atomic_c_buffer *out_values,
+    int *out_found);
+/*
+ * ABI v2 additive packed bulk-read fast path. All found values are copied into
+ * one caller-freed arena. out_offsets/out_sizes/out_found each have key_count
+ * slots. Missing and empty values are distinguished by out_found.
+ */
+bdr_atomic_c_status bdr_atomic_c_get_many_packed(
+    bdr_atomic_c_handle *handle,
+    const bdr_atomic_c_key *keys,
+    size_t key_count,
+    bdr_atomic_c_buffer *out_arena,
+    size_t *out_offsets,
+    size_t *out_sizes,
+    int *out_found);
 bdr_atomic_c_status bdr_atomic_c_exists(
     bdr_atomic_c_handle *handle,
     const void *key,
@@ -78,6 +127,10 @@ bdr_atomic_c_status bdr_atomic_c_exists(
 bdr_atomic_c_status bdr_atomic_c_sync(bdr_atomic_c_handle *handle);
 bdr_atomic_c_status bdr_atomic_c_last_sequence(bdr_atomic_c_handle *handle, uint64_t *out_sequence);
 bdr_atomic_c_status bdr_atomic_c_durable_sequence(bdr_atomic_c_handle *handle, uint64_t *out_sequence);
+/* Experimental ABI v2 diagnostics; not a stable persistence-format contract. */
+bdr_atomic_c_status bdr_atomic_c_diagnostics_get(
+    bdr_atomic_c_handle *handle,
+    bdr_atomic_c_diagnostics *out_diagnostics);
 bdr_atomic_c_status bdr_atomic_c_integrity_check(bdr_atomic_c_handle *handle);
 void bdr_atomic_c_free_buffer(bdr_atomic_c_buffer buffer);
 void bdr_atomic_c_close(bdr_atomic_c_handle *handle);

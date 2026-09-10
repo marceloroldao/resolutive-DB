@@ -1,10 +1,19 @@
 name: Android NDK C ABI
 
 on:
+  push:
+    branches:
+      - experiment/v1.2-topological-telemetry
+    paths:
+      - "CMakeLists.txt"
+      - "experimental/api_v86/**"
+      - ".github/workflows/android-ndk.yml"
   pull_request:
     branches:
       - main
+      - experiment/v1.2-python-atomic-bridge
     paths:
+      - "CMakeLists.txt"
       - "experimental/api_v86/**"
       - ".github/workflows/android-ndk.yml"
   workflow_dispatch:
@@ -64,10 +73,17 @@ jobs:
           grep -q "bdr_atomic_c_abi_version" symbols-atomic.txt
           grep -q "bdr_atomic_c_open" symbols-atomic.txt
           grep -q "bdr_atomic_c_write_batch" symbols-atomic.txt
+          grep -q "bdr_atomic_c_write_batch_with_durability" symbols-atomic.txt
           grep -q "bdr_atomic_c_get" symbols-atomic.txt
+          grep -q "bdr_atomic_c_get_many" symbols-atomic.txt
+          grep -q "bdr_atomic_c_get_many_packed" symbols-atomic.txt
           grep -q "bdr_atomic_c_exists" symbols-atomic.txt
           grep -q "bdr_atomic_c_sync" symbols-atomic.txt
+          grep -q "bdr_atomic_c_last_sequence" symbols-atomic.txt
+          grep -q "bdr_atomic_c_durable_sequence" symbols-atomic.txt
+          grep -q "bdr_atomic_c_diagnostics_get" symbols-atomic.txt
           grep -q "bdr_atomic_c_integrity_check" symbols-atomic.txt
+          grep -q "bdr_atomic_c_free_buffer" symbols-atomic.txt
           grep -q "bdr_atomic_c_close" symbols-atomic.txt
       - name: Upload Android arm64-v8a archives
         uses: actions/upload-artifact@v4
