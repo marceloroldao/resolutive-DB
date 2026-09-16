@@ -25,6 +25,22 @@ struct BatchResult {
     bool durable = false;
 };
 
+struct AtomicDiagnostics {
+    std::uintmax_t wal_bytes = 0;
+    std::size_t replayed_batches = 0;
+    std::size_t replayed_operations = 0;
+    std::size_t legacy_records = 0;
+    std::size_t resident_records = 0;
+    std::uint64_t legacy_sequence = 0;
+    std::uint64_t last_sequence = 0;
+    std::uint64_t durable_sequence = 0;
+    bool repaired_torn_tail = false;
+    std::uint64_t legacy_load_us = 0;
+    std::uint64_t wal_read_us = 0;
+    std::uint64_t wal_decode_apply_us = 0;
+    std::uint64_t wal_replay_us = 0;
+};
+
 class AtomicDatabase {
 public:
     static std::unique_ptr<AtomicDatabase> open(
@@ -57,6 +73,9 @@ public:
     std::uint64_t last_sequence() const;
     std::uint64_t durable_sequence() const;
     std::size_t size() const;
+
+    // Experimental v1.2 diagnostic surface. Persistence semantics are unchanged.
+    AtomicDiagnostics diagnostics() const;
 
 private:
     class Impl;

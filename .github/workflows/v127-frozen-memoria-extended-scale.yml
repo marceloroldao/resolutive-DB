@@ -1,0 +1,62 @@
+name: V127 Frozen Memoria Extended Scale
+
+on:
+  pull_request:
+    branches:
+      - experiment/v1.2-python-atomic-bridge
+    paths:
+      - "bdr/**"
+      - "benchmarks/v122_frozen_memoria_topological.py"
+      - "benchmarks/v127_frozen_memoria_extended_scale.py"
+      - "experimental/api_v86/**"
+      - "experimental/api_v101/**"
+      - "experimental/api_v102/**"
+      - "experimental/api_v110/**"
+      - "experimental/api_v111/**"
+      - ".github/workflows/v127-frozen-memoria-extended-scale.yml"
+  workflow_dispatch:
+
+jobs:
+  frozen-memoria-extended-scale:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Resolutive-DB experiment
+        uses: actions/checkout@v4
+      - name: Checkout validated Memoria.ia benchmark head
+        uses: actions/checkout@v4
+        with:
+          repository: marceloroldao/memoria.ia
+          ref: 99a1585d497b98f0fc6f360ec8f39e6771452827
+          path: memoria-source
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install native and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ zlib1g-dev
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install -e './memoria-source[product,test]'
+      - name: Build shared atomic ABI
+        run: |
+          cmake -S experimental/api_v86 -B build-v127 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-v127 --target bdr_atomic_c_api_shared -j2
+      - name: Validate Python bridge
+        env:
+          BDR_ATOMIC_LIBRARY: ${{ github.workspace }}/build-v127/libbdr_atomic_c_api.so
+        run: python -m pytest -q tests/test_atomic_bridge.py tests/test_atomic_bridge_packed_keys.py
+      - name: Run frozen Memoria 5k/10k scale extension
+        env:
+          BDR_ATOMIC_LIBRARY: ${{ github.workspace }}/build-v127/libbdr_atomic_c_api.so
+        run: |
+          python benchmarks/v127_frozen_memoria_extended_scale.py \
+            --library "$BDR_ATOMIC_LIBRARY" \
+            | tee v127-frozen-memoria-extended-scale.json
+      - name: Upload V127 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v127-frozen-memoria-extended-scale
+          path: v127-frozen-memoria-extended-scale.json

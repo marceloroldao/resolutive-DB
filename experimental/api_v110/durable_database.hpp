@@ -25,6 +25,22 @@ struct BatchResult {
     bool durable = false;
 };
 
+struct Diagnostics {
+    std::uintmax_t wal_bytes = 0;
+    std::size_t replayed_batches = 0;
+    std::size_t replayed_operations = 0;
+    std::size_t legacy_records = 0;
+    std::size_t resident_records = 0;
+    std::uint64_t legacy_sequence = 0;
+    std::uint64_t last_sequence = 0;
+    std::uint64_t durable_sequence = 0;
+    bool repaired_torn_tail = false;
+    std::uint64_t legacy_load_us = 0;
+    std::uint64_t wal_read_us = 0;
+    std::uint64_t wal_decode_apply_us = 0;
+    std::uint64_t wal_replay_us = 0;
+};
+
 class DurableDatabase {
 public:
     DurableDatabase(std::filesystem::path legacy_directory,
@@ -50,6 +66,7 @@ public:
     std::uint64_t last_sequence() const;
     std::uint64_t durable_sequence() const;
     std::size_t size() const;
+    Diagnostics diagnostics() const;
 
 private:
     void validate_operations(const std::vector<v101::Operation>& operations,
@@ -62,6 +79,7 @@ private:
     std::map<std::string, std::string> state_;
     std::uint64_t last_sequence_ = 0;
     std::uint64_t durable_sequence_ = 0;
+    Diagnostics diagnostics_;
 };
 
 } // namespace bdr::v110

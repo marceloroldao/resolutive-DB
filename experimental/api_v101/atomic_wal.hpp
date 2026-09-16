@@ -24,6 +24,7 @@ struct ReplayResult {
     bool torn_tail = false;
     std::uint64_t last_sequence = 0;
     std::size_t committed_batches = 0;
+    std::size_t replayed_operations = 0;
 };
 
 std::vector<std::uint8_t> encode_batch(std::uint64_t sequence,

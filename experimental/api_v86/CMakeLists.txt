@@ -88,6 +88,9 @@ target_link_libraries(v1_candidate_contract PRIVATE bdr_v1_candidate)
 add_executable(v111_public_compat ../api_v111/test_public_compat.cpp)
 target_link_libraries(v111_public_compat PRIVATE bdr_v1_candidate)
 
+add_executable(v120_atomic_diagnostics test_atomic_diagnostics.cpp)
+target_link_libraries(v120_atomic_diagnostics PRIVATE bdr_v1_candidate)
+
 add_executable(v1_c_api_restart test_c_api_restart.cpp)
 target_link_libraries(v1_c_api_restart PRIVATE bdr_c_api)
 
@@ -148,6 +151,7 @@ add_test(NAME v86_contract COMMAND v86_contract)
 add_test(NAME v1_candidate_contract COMMAND v1_candidate_contract)
 add_test(NAME v1_fallback_contract COMMAND v1_fallback_contract)
 add_test(NAME v111_public_compat COMMAND v111_public_compat)
+add_test(NAME v120_atomic_diagnostics COMMAND v120_atomic_diagnostics)
 add_test(NAME v1_c_api_restart COMMAND v1_c_api_restart)
 add_test(NAME v1_atomic_c_api_restart COMMAND v1_atomic_c_api_restart)
 add_test(NAME v1_atomic_c_api_torn_tail COMMAND v1_atomic_c_api_torn_tail)

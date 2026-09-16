@@ -176,6 +176,7 @@ ReplayResult replay(const std::vector<std::uint8_t>& bytes,
 
         result.last_sequence = sequence;
         ++result.committed_batches;
+        result.replayed_operations += count;
         pos += total;
         result.last_good = pos;
     }
