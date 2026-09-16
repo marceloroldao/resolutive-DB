@@ -25,5 +25,9 @@ target_link_libraries(v110_database PUBLIC ZLIB::ZLIB Threads::Threads)
 add_executable(v110_durability test_durability.cpp)
 target_link_libraries(v110_durability PRIVATE v110_database ZLIB::ZLIB Threads::Threads)
 
+add_executable(v110_per_operation_sync_multiop_rc1_repro test_per_operation_sync_multiop_rc1_repro.cpp)
+target_link_libraries(v110_per_operation_sync_multiop_rc1_repro PRIVATE v110_database ZLIB::ZLIB Threads::Threads)
+
 enable_testing()
 add_test(NAME v110_durability COMMAND v110_durability)
+add_test(NAME v110_per_operation_sync_multiop_rc1_repro COMMAND v110_per_operation_sync_multiop_rc1_repro)
