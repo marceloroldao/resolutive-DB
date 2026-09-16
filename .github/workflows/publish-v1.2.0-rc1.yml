@@ -35,6 +35,9 @@ jobs:
           TAG="v1.2.0-rc1"
           TARGET="eb77ad7286f234243ca1ed1a2af2d55df8c12238"
 
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
             echo "Tag ${TAG} already exists; refusing to move it."
           else
