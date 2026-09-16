@@ -3,7 +3,6 @@
 #include <cassert>
 #include <filesystem>
 #include <iostream>
-#include <stdexcept>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -49,20 +48,20 @@ int main() {
         assert(d.sequence == 4 && d.durable && d.operations == 1);
         assert(db.durable_sequence() == 4);
 
-        bool rejected = false;
-        try {
-            db.write_batch({
-                {OpType::Put, "bad/1", "x"},
-                {OpType::Put, "bad/2", "y"},
-            }, DurabilityMode::PerOperationSync);
-        } catch (const std::invalid_argument&) {
-            rejected = true;
-        }
-        assert(rejected);
-        assert(db.last_sequence() == 4);
+        // RC2: PerOperationSync no longer changes the atomic batch boundary.
+        // A multi-operation batch remains one sequence and becomes durable as a unit.
+        auto per_batch = db.write_batch({
+            {OpType::Put, "per/1", "x"},
+            {OpType::Put, "per/2", "y"},
+        }, DurabilityMode::PerOperationSync);
+        assert(per_batch.sequence == 5 && per_batch.durable && per_batch.operations == 2);
+        assert(db.last_sequence() == 5);
+        assert(db.durable_sequence() == 5);
+        assert(db.get("per/1") && *db.get("per/1") == "x");
+        assert(db.get("per/2") && *db.get("per/2") == "y");
 
         auto e = db.erase_many({"async/a", "batch/d"}, DurabilityMode::BatchSync);
-        assert(e.sequence == 5 && e.durable && e.operations == 2);
+        assert(e.sequence == 6 && e.durable && e.operations == 2);
         assert(!db.get("async/a"));
         assert(!db.get("batch/d"));
         assert(db.get("async/b") && *db.get("async/b") == "B");
@@ -79,9 +78,11 @@ int main() {
         assert(!reopened.get("batch/d"));
         assert(reopened.get("batch/e") && *reopened.get("batch/e") == "E");
         assert(reopened.get("single/f") && *reopened.get("single/f") == "F");
+        assert(reopened.get("per/1") && *reopened.get("per/1") == "x");
+        assert(reopened.get("per/2") && *reopened.get("per/2") == "y");
     }
 
-    std::cout << "V110 PASS final_sequence=" << final_sequence << "\n";
+    std::cout << "V110 RC2 PASS final_sequence=" << final_sequence << "\n";
     fs::remove_all(root, ec);
     return 0;
 }
