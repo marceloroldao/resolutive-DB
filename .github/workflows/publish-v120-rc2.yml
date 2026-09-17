@@ -1,0 +1,38 @@
+name: Publish BDR v1.2.0-rc2
+
+on:
+  push:
+    branches:
+      - freeze/v1.2.0-rc2
+    paths:
+      - '.github/workflows/publish-v120-rc2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout frozen candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify validated parent
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD^)" = "d83155fbcc45f8984ca21eea8b038e4c2132a041"
+
+      - name: Publish immutable RC2 tag and prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          git tag -a v1.2.0-rc2 -m "BDR v1.2.0-rc2"
+          git push origin v1.2.0-rc2
+          gh release create v1.2.0-rc2 \
+            --title "Resolutive DB v1.2.0-rc2" \
+            --prerelease \
+            --target "$(git rev-parse HEAD)" \
+            --notes-file docs/releases/v1.2.0-rc2-validation.md
