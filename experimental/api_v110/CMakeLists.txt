@@ -25,9 +25,10 @@ target_link_libraries(v110_database PUBLIC ZLIB::ZLIB Threads::Threads)
 add_executable(v110_durability test_durability.cpp)
 target_link_libraries(v110_durability PRIVATE v110_database ZLIB::ZLIB Threads::Threads)
 
-add_executable(v110_per_operation_sync_multiop_rc1_repro test_per_operation_sync_multiop_rc1_repro.cpp)
-target_link_libraries(v110_per_operation_sync_multiop_rc1_repro PRIVATE v110_database ZLIB::ZLIB Threads::Threads)
+# test_per_operation_sync_multiop_rc1_repro.cpp is intentionally retained only
+# as historical evidence for frozen RC1 (eb77ad7286f234243ca1ed1a2af2d55df8c12238).
+# RC2 changes the expected behavior, so the RC1 reproduction must not be built
+# or registered in the normal RC2 CTest suite.
 
 enable_testing()
 add_test(NAME v110_durability COMMAND v110_durability)
-add_test(NAME v110_per_operation_sync_multiop_rc1_repro COMMAND v110_per_operation_sync_multiop_rc1_repro)
