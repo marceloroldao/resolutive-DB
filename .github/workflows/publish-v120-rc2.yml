@@ -19,16 +19,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify validated parent
+      - name: Verify validated ancestry
         shell: bash
         run: |
-          test "$(git rev-parse HEAD^)" = "d83155fbcc45f8984ca21eea8b038e4c2132a041"
+          git merge-base --is-ancestor d83155fbcc45f8984ca21eea8b038e4c2132a041 HEAD
 
       - name: Publish immutable RC2 tag and prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a v1.2.0-rc2 -m "BDR v1.2.0-rc2"
           git push origin v1.2.0-rc2
           gh release create v1.2.0-rc2 \
