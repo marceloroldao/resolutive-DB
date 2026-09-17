@@ -5,6 +5,7 @@ on:
     branches:
       - release/v1.2.0-rc2
     paths:
+      - 'experimental/api_v102/**'
       - 'experimental/api_v110/**'
       - 'experimental/api_v111/**'
       - 'experimental/api_v86/**'
@@ -15,6 +16,21 @@ permissions:
   contents: read
 
 jobs:
+  wal-recovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ zlib1g-dev
+      - name: Build V102 WAL recovery tests
+        run: |
+          cmake -S experimental/api_v102 -B build-v102 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-v102 --config Release -j2
+      - name: Run exhaustive torn-tail and reopen recovery tests
+        run: ctest --test-dir build-v102 --output-on-failure
+
   native-durability:
     runs-on: ubuntu-latest
     steps:
