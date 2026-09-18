@@ -100,6 +100,9 @@ target_link_libraries(v1_atomic_c_api_restart PRIVATE bdr_atomic_c_api)
 add_executable(v1_atomic_c_api_torn_tail test_atomic_c_api_torn_tail.cpp)
 target_link_libraries(v1_atomic_c_api_torn_tail PRIVATE bdr_atomic_c_api)
 
+add_executable(v1_atomic_c_api_sequence_regression test_atomic_c_api_sequence_regression.cpp)
+target_link_libraries(v1_atomic_c_api_sequence_regression PRIVATE bdr_atomic_c_api)
+
 # Internal regression fallback: legacy ResolutiveIndex + the same streaming persistence path.
 add_library(bdr_v1_fallback STATIC
     src/database_v1.cpp
@@ -155,3 +158,4 @@ add_test(NAME v120_atomic_diagnostics COMMAND v120_atomic_diagnostics)
 add_test(NAME v1_c_api_restart COMMAND v1_c_api_restart)
 add_test(NAME v1_atomic_c_api_restart COMMAND v1_atomic_c_api_restart)
 add_test(NAME v1_atomic_c_api_torn_tail COMMAND v1_atomic_c_api_torn_tail)
+add_test(NAME v1_atomic_c_api_sequence_regression COMMAND v1_atomic_c_api_sequence_regression)
