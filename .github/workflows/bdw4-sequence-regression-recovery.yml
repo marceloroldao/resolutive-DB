@@ -32,3 +32,5 @@ jobs:
         run: ./build-recovery/v1_atomic_c_api_torn_tail
       - name: Validate legacy sequence-regression recovery
         run: ./build-recovery/v1_atomic_c_api_sequence_regression
+      - name: Keep forward sequence gaps fail-closed
+        run: ./build-recovery/v1_atomic_forward_gap
