@@ -122,7 +122,18 @@ ReplayResult replay(const std::vector<std::uint8_t>& bytes,
 
         const std::uint64_t sequence = be64(frame + 12);
         const std::uint32_t count = be32(frame + 20);
-        if (sequence != result.last_sequence + 1) {
+        /*
+         * Historical compatibility: early Memoria.ia builds could open two
+         * AtomicDatabase handles over the same BDW4 file. A stale handle could
+         * append a fully valid CRC-protected frame whose sequence was equal to
+         * or lower than a frame already present. Physical append order is the
+         * only unambiguous commit order in that legacy case, so replay accepts
+         * sequence regressions/duplicates and applies them in file order.
+         *
+         * A forward gap is still corruption: no writer can legitimately skip
+         * an unseen sequence, so keep failing closed for sequence > last+1.
+         */
+        if (sequence > result.last_sequence + 1) {
             throw std::runtime_error("BDW4 sequence gap");
         }
         if (count == 0 || count > 1'000'000) {
@@ -174,7 +185,7 @@ ReplayResult replay(const std::vector<std::uint8_t>& bytes,
             else state.erase(op.key);
         }
 
-        result.last_sequence = sequence;
+        if (sequence > result.last_sequence) result.last_sequence = sequence;
         ++result.committed_batches;
         result.replayed_operations += count;
         pos += total;
