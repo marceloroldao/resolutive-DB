@@ -1,0 +1,34 @@
+name: BDW4 sequence regression recovery
+
+on:
+  push:
+    branches: [fix/bdw4-sequence-regression-recovery]
+    paths:
+      - 'experimental/api_v101/atomic_wal.cpp'
+      - 'experimental/api_v86/CMakeLists.txt'
+      - 'experimental/api_v86/test_atomic_c_api_sequence_regression.cpp'
+      - '.github/workflows/bdw4-sequence-regression-recovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ zlib1g-dev
+      - name: Configure
+        run: cmake -S experimental/api_v86 -B build-recovery -DCMAKE_BUILD_TYPE=Release
+      - name: Build atomic regression targets
+        run: |
+          cmake --build build-recovery --parallel 2 --target             v1_atomic_c_api_restart             v1_atomic_c_api_torn_tail             v1_atomic_c_api_sequence_regression
+      - name: Validate normal restart
+        run: ./build-recovery/v1_atomic_c_api_restart
+      - name: Validate torn-tail recovery
+        run: ./build-recovery/v1_atomic_c_api_torn_tail
+      - name: Validate legacy sequence-regression recovery
+        run: ./build-recovery/v1_atomic_c_api_sequence_regression
