@@ -1,23 +1,23 @@
 cff-version: 1.2.0
-message: "If you use BDR v1.1.0, please cite this software release and the associated scientific preprint where appropriate."
+message: "If you use BDR v1.2.0-rc2, please cite this software release and the associated scientific preprint where appropriate."
 title: "Banco de Dados Resolutivo (BDR) / Resolutive Database Engine"
-version: "1.1.0"
+version: "1.2.0-rc2"
 type: software
 authors:
   - family-names: "Matos"
     given-names: "Marcelo Roldão"
     orcid: "https://orcid.org/0009-0003-6075-4680"
 repository-code: "https://github.com/marceloroldao/resolutive-DB"
-url: "https://github.com/marceloroldao/resolutive-DB/releases/tag/v1.1.0"
-doi: "10.5281/zenodo.22130421"
+url: "https://github.com/marceloroldao/resolutive-DB/releases/tag/v1.2.0-rc2"
+doi: "10.5281/zenodo.22821283"
 abstract: >-
-  BDR v1.1.0 extends the stable v1 line with an additive atomic logical-write
-  path for Memoria.ia integration. It preserves the existing bdr::Database
-  source contract and BDR3/BDW3 readers while adding bdr::AtomicDatabase,
-  atomic write_batch/put_many/erase_many operations, explicit durability modes,
-  and the versioned BDW4 write-ahead log with all-or-nothing crash recovery.
-  Performance claims remain workload-specific and the project does not claim
-  strict worst-case O(1) complexity for the complete engine.
+  BDR v1.2.0-rc2 is a published pre-release candidate in the v1.2 line. It
+  preserves the v1.1 atomic BDW4 persistence model while validating the Atomic
+  C ABI v2 and Memoria.ia integration contract. Multi-operation
+  PerOperationSync batches remain one logical batch, one sequence and one
+  all-or-nothing recovery boundary. Native WAL torn-tail recovery, durability,
+  cold restart and end-to-end Memoria.ia recovery gates passed for this
+  candidate. Performance claims remain workload-specific.
 keywords:
   - resolutive database
   - BDR
@@ -29,7 +29,7 @@ keywords:
   - write-ahead log
   - crash recovery
   - C++ API
-  - CMake
+  - C ABI
   - reproducible research
 license: other
 preferred-citation:
