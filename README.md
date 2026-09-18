@@ -1,8 +1,9 @@
 # Banco de Dados Resolutivo (BDR)
 
 **Current stable-engine line: BDR v1.1.0 — Released**  
-**Current release candidate: BDR v1.2.0-rc1 — Validation candidate, not stable**
+**Current release candidate: BDR v1.2.0-rc2 — Published pre-release, not stable**
 
+**Software DOI (v1.2.0-rc2):** 10.5281/zenodo.22821283  
 **Software DOI (v1.1.0):** 10.5281/zenodo.22130421  
 **Previous software DOI (v1.0.0):** 10.5281/zenodo.22120246  
 **Software DOI (v0.2.0-rc1):** 10.5281/zenodo.22074886  
@@ -13,9 +14,9 @@ Projeto da **ETBRA Tecnologias** para investigar e desenvolver um mecanismo de a
 
 > **Status de engenharia:** v1.1.0 permanece a linha estável publicada. A v1.2.0-rc1 é um candidato pré-release que adiciona o bridge atômico Python, leitura bulk otimizada, Atomic C ABI v2 e validação contra o workload topológico/temporal congelado da Memoria.ia. Não há redesign do BDW4. Resultados de desempenho continuam específicos ao workload e ao ambiente de teste.
 
-## Estado atual — v1.2.0-rc1 candidato
+## Estado atual — v1.2.0-rc2 publicado
 
-O candidato v1.2.0-rc1 preserva a base v1.1 e acrescenta, de forma aditiva:
+O candidato publicado v1.2.0-rc2 preserva a base v1.1 e a superfície v1.2.0-rc1, corrigindo e validando o contrato de durabilidade multi-op `PerOperationSync`. DOI desta pre-release: **10.5281/zenodo.22821283**. A linha v1.1.0 continua sendo a baseline estável.
 
 - `bdr.AtomicBDR` para Python;
 - `write_batch`, `put_many`, `erase_many`, `get_many`, `sync`, `last_sequence` e `durable_sequence`;
@@ -189,6 +190,7 @@ A licença de software não concede direitos de patente.
 ORCID: 0009-0003-6075-4680  
 ETBRA Tecnologias — 2026
 
+**Software DOI v1.2.0-rc2:** 10.5281/zenodo.22821283  
 **Software DOI v1.1.0:** 10.5281/zenodo.22130421  
 **Software DOI v1.0.0:** 10.5281/zenodo.22120246  
 **Software DOI v0.2.0-rc1:** 10.5281/zenodo.22074886  
