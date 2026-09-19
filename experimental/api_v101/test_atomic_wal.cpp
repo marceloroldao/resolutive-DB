@@ -96,6 +96,58 @@ int main() {
         assert(state.find("preexisting") == state.end());
     }
 
+    // Legacy Memoria.ia opened two independent BDR handles on the same WAL.
+    // The only compatibility exception is the exact leading 1,1 restart;
+    // both complete CRC-valid frames are applied, then strict sequencing resumes.
+    {
+        const auto legacy_second = encode_batch(1, {
+            {OpType::Put, "legacy/second-handle", "preserved"},
+        });
+        const auto legacy_third = encode_batch(2, {
+            {OpType::Put, "legacy/continued", "preserved"},
+        });
+        std::vector<std::uint8_t> wal = batch;
+        wal.insert(wal.end(), legacy_second.begin(), legacy_second.end());
+        wal.insert(wal.end(), legacy_third.begin(), legacy_third.end());
+        std::map<std::string, std::string> state;
+        const auto rr = replay(wal, state, 0);
+        assert(rr.committed_batches == 3);
+        assert(rr.last_sequence == 2);
+        require_complete(state);
+        assert(state.at("legacy/second-handle") == "preserved");
+        assert(state.at("legacy/continued") == "preserved");
+    }
+
+    // The compatibility rule is deliberately bounded: a third sequence-1
+    // frame remains corruption and must fail closed.
+    {
+        const auto legacy_second = encode_batch(1, {{OpType::Put, "legacy/a", "1"}});
+        const auto illegal_third = encode_batch(1, {{OpType::Put, "legacy/b", "2"}});
+        std::vector<std::uint8_t> wal = batch;
+        wal.insert(wal.end(), legacy_second.begin(), legacy_second.end());
+        wal.insert(wal.end(), illegal_third.begin(), illegal_third.end());
+        std::map<std::string, std::string> state;
+        bool failed = false;
+        try { (void)replay(wal, state, 0); }
+        catch (const std::runtime_error&) { failed = true; }
+        assert(failed);
+    }
+
+    // The exception is only at the WAL head. A duplicate later sequence
+    // remains a hard sequence gap.
+    {
+        const auto seq2 = encode_batch(2, {{OpType::Put, "strict/a", "1"}});
+        const auto duplicate2 = encode_batch(2, {{OpType::Put, "strict/b", "2"}});
+        std::vector<std::uint8_t> wal = batch;
+        wal.insert(wal.end(), seq2.begin(), seq2.end());
+        wal.insert(wal.end(), duplicate2.begin(), duplicate2.end());
+        std::map<std::string, std::string> state;
+        bool failed = false;
+        try { (void)replay(wal, state, 0); }
+        catch (const std::runtime_error&) { failed = true; }
+        assert(failed);
+    }
+
     // Corruption of a complete frame is not a torn-tail case: it must fail
     // closed instead of accepting an unverifiable logical memory.
     {
