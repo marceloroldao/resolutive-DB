@@ -123,7 +123,12 @@ ReplayResult replay(const std::vector<std::uint8_t>& bytes,
         const std::uint64_t sequence = be64(frame + 12);
         const std::uint32_t count = be32(frame + 20);
         if (sequence != result.last_sequence + 1) {
-            throw std::runtime_error("BDW4 sequence gap");
+            throw std::runtime_error(
+                "BDW4 sequence gap: frame_sequence=" + std::to_string(sequence) +
+                " expected_sequence=" + std::to_string(result.last_sequence + 1) +
+                " previous_sequence=" + std::to_string(result.last_sequence) +
+                " offset=" + std::to_string(pos) +
+                " frame_index=" + std::to_string(result.committed_batches));
         }
         if (count == 0 || count > 1'000'000) {
             throw std::runtime_error("BDW4 operation count invalid");
