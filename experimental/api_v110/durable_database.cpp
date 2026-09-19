@@ -56,8 +56,12 @@ DurableDatabase::DurableDatabase(std::filesystem::path legacy_directory,
 void DurableDatabase::validate_operations(const std::vector<v101::Operation>& operations,
                                           DurabilityMode durability) const {
     if (operations.empty()) throw std::invalid_argument("write_batch requires at least one operation");
-    if (durability == DurabilityMode::PerOperationSync && operations.size() != 1)
-        throw std::invalid_argument("PerOperationSync requires exactly one operation");
+    // RC2 contract: write_batch is always the atomic visibility/sequence boundary.
+    // PerOperationSync is accepted for multi-operation batches, but it must never
+    // split a logical batch into independently visible or recoverable commits.
+    // The current BDW4 writer persists one framed batch and synchronizes that
+    // frame before return, preserving all-or-nothing recovery semantics.
+    (void)durability;
     for (const auto& op : operations) {
         if (op.key.empty()) throw std::invalid_argument("operation key must not be empty");
         if (op.key.size() > (1u << 20)) throw std::invalid_argument("operation key too large");

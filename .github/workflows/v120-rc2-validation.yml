@@ -1,0 +1,69 @@
+name: BDR v1.2.0-rc2 validation
+
+on:
+  push:
+    branches:
+      - release/v1.2.0-rc2
+    paths:
+      - 'experimental/api_v102/**'
+      - 'experimental/api_v110/**'
+      - 'experimental/api_v111/**'
+      - 'experimental/api_v86/**'
+      - '.github/workflows/v120-rc2-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wal-recovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ zlib1g-dev
+      - name: Build V102 WAL recovery tests
+        run: |
+          cmake -S experimental/api_v102 -B build-v102 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-v102 --config Release -j2
+      - name: Run exhaustive torn-tail and reopen recovery tests
+        run: ctest --test-dir build-v102 --output-on-failure
+
+  native-durability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ zlib1g-dev
+      - name: Build V110 durability tests
+        run: |
+          cmake -S experimental/api_v110 -B build-v110 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-v110 --config Release -j2
+      - name: Run V110 tests
+        run: ctest --test-dir build-v110 --output-on-failure
+
+  atomic-abi-v2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ zlib1g-dev
+      - name: Build Atomic C ABI v2
+        run: |
+          cmake -S experimental/api_v86 -B build-v86 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-v86 --target bdr_atomic_c_api_shared --config Release -j2
+      - name: Verify ABI v2 symbol contract
+        shell: bash
+        run: |
+          grep -q 'BDR_ATOMIC_C_ABI_VERSION 2u' experimental/api_v86/include/bdr/atomic_c_api.h
+          LIB="$(find "$GITHUB_WORKSPACE/build-v86" -type f \( -name 'libbdr_atomic_c_api_shared.so' -o -name 'libbdr_atomic_c_api.so' \) | head -n1)"
+          test -n "$LIB"
+          nm -D "$LIB" | grep -q 'bdr_atomic_c_write_batch_with_durability'
+          nm -D "$LIB" | grep -q 'bdr_atomic_c_last_sequence'
+          nm -D "$LIB" | grep -q 'bdr_atomic_c_durable_sequence'
