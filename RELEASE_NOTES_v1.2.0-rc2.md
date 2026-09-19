@@ -1,6 +1,6 @@
 # BDR v1.2.0-rc2 — Release Candidate Notes
 
-Status: release candidate for validation. This is a new candidate and does not modify the published v1.2.0-rc1 artifact or DOI.
+Status: release candidate under final validation. This is a new candidate and does not modify the published v1.2.0-rc1 artifact or DOI. BDR v1.1.0 remains the published stable baseline.
 
 ## Purpose
 
@@ -58,4 +58,4 @@ The BDR pull-request gate passed the atomic WAL regression plus the broader BDR 
 
 ## Promotion rule
 
-Do not create the `v1.2.0-rc2` tag or publish its release artifact until the final CI round on the versioned release commit is green.
+No tag, GitHub release, Zenodo record, or stable promotion should be created until the final CI round on the versioned release commit is green.
