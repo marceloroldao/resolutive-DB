@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <cstdio>
+#include <exception>
 #include <memory>
 #include <optional>
 #include <string>
@@ -50,7 +52,11 @@ extern "C" bdr_atomic_c_status bdr_atomic_c_open(const char *directory, bdr_atom
         if (!h->db) return BDR_ATOMIC_C_IO_ERROR;
         *out_handle = h.release();
         return BDR_ATOMIC_C_OK;
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[bdr-atomic] open exception: %s directory=%s\\n", ex.what(), directory);
+        return BDR_ATOMIC_C_IO_ERROR;
     } catch (...) {
+        std::fprintf(stderr, "[bdr-atomic] open exception: unknown directory=%s\\n", directory);
         return BDR_ATOMIC_C_IO_ERROR;
     }
 }
