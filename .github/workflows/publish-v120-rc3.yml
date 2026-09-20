@@ -1,0 +1,54 @@
+name: Publish BDR v1.2.0-rc3
+
+on:
+  push:
+    branches:
+      - freeze/v1.2.0-rc3
+    paths:
+      - '.github/workflows/publish-v120-rc3.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout frozen candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Refuse existing RC tags or releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          test -z "$(git tag -l 'v1.2.0-rc3')"
+          ! gh release view v1.2.0-rc3 >/dev/null 2>&1
+
+      - name: Verify validated ancestry
+        shell: bash
+        run: |
+          git merge-base --is-ancestor dea437d411d0727306559dbc50ac2af647258934 HEAD
+
+      - name: Preserve historical release immutability
+        shell: bash
+        run: |
+          test -n "$(git rev-parse refs/tags/v1.2.0-rc1)"
+          test -n "$(git rev-parse refs/tags/v1.2.0-rc2)"
+
+      - name: Publish immutable RC3 tag and prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a v1.2.0-rc3 -m "BDR v1.2.0-rc3"
+          git push origin v1.2.0-rc3
+          gh release create v1.2.0-rc3 \
+            --title "Resolutive DB v1.2.0-rc3" \
+            --prerelease \
+            --target "$(git rev-parse HEAD)" \
+            --notes-file docs/releases/v1.2.0-rc3-validation.md
