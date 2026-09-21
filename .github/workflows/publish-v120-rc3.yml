@@ -30,7 +30,7 @@ jobs:
       - name: Verify validated ancestry
         shell: bash
         run: |
-          git merge-base --is-ancestor dea437d411d0727306559dbc50ac2af647258934 HEAD
+          git merge-base --is-ancestor f1c4b9633b90df4e90d557c0cdb0d471d33176ad HEAD
 
       - name: Preserve historical release immutability
         shell: bash
