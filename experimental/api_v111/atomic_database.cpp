@@ -98,6 +98,10 @@ BatchResult AtomicDatabase::erase_many(std::vector<std::string> keys,
     return to_public(impl_->db.erase_many(std::move(keys), to_internal(durability)));
 }
 
+BatchResult AtomicDatabase::clear(DurabilityMode durability) {
+    return to_public(impl_->db.clear(to_internal(durability)));
+}
+
 std::optional<std::string> AtomicDatabase::get(const std::string& key) const {
     return impl_->db.get(key);
 }
