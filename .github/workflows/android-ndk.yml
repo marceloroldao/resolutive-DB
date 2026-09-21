@@ -39,9 +39,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: android-actions/setup-android@v3
+      - name: Locate Android SDK manager
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n1)"
+          test -x "$SDKMANAGER"
+          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
+          "$SDKMANAGER" --version
       - name: Install Android NDK
-        run: sdkmanager "ndk;27.2.12479018"
+        run: "$SDKMANAGER" "ndk;27.2.12479018"
       - name: Configure arm64-v8a
         run: >-
           cmake -S . -B build/android-arm64
