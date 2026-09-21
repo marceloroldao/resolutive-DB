@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <vector>
 
 static int fail(const char *message) {
     std::cerr << message << "\n";
