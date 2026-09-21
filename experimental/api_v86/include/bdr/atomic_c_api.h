@@ -124,6 +124,10 @@ bdr_atomic_c_status bdr_atomic_c_exists(
     const void *key,
     size_t key_size,
     int *out_exists);
+/* Additive logical format: append one durable DELETE batch for all resident keys. */
+bdr_atomic_c_status bdr_atomic_c_clear(
+    bdr_atomic_c_handle *handle,
+    bdr_atomic_c_batch_result *out_result);
 bdr_atomic_c_status bdr_atomic_c_sync(bdr_atomic_c_handle *handle);
 bdr_atomic_c_status bdr_atomic_c_last_sequence(bdr_atomic_c_handle *handle, uint64_t *out_sequence);
 bdr_atomic_c_status bdr_atomic_c_durable_sequence(bdr_atomic_c_handle *handle, uint64_t *out_sequence);
