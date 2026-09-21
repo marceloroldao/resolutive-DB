@@ -129,6 +129,38 @@ BatchResult DurableDatabase::erase_many(std::vector<std::string> keys,
     return write_batch(std::move(operations), durability);
 }
 
+BatchResult DurableDatabase::clear(DurabilityMode durability) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (state_.empty()) {
+        return {last_sequence_, 0, durable_sequence_ == last_sequence_};
+    }
+
+    std::vector<v101::Operation> operations;
+    operations.reserve(state_.size());
+    for (const auto& [key, value] : state_) {
+        (void)value;
+        operations.push_back({v101::OpType::Delete, key, {}});
+    }
+    validate_operations(operations, durability);
+
+    const auto sequence = last_sequence_ + 1;
+    const bool sync_now = durability != DurabilityMode::Async;
+    v102::append_batch(bdw4_path_, sequence, operations, sync_now);
+
+    state_.clear();
+    last_sequence_ = sequence;
+    if (sync_now) durable_sequence_ = sequence;
+
+    diagnostics_.resident_records = 0;
+    diagnostics_.last_sequence = last_sequence_;
+    diagnostics_.durable_sequence = durable_sequence_;
+    std::error_code ec;
+    if (std::filesystem::exists(bdw4_path_, ec) && !ec)
+        diagnostics_.wal_bytes = std::filesystem::file_size(bdw4_path_, ec);
+
+    return {sequence, operations.size(), sync_now};
+}
+
 void DurableDatabase::sync() {
     std::lock_guard<std::mutex> lock(mutex_);
     if (last_sequence_ == durable_sequence_) return;

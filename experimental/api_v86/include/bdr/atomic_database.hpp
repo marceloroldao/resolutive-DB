@@ -64,6 +64,7 @@ public:
                          DurabilityMode durability = DurabilityMode::BatchSync);
     BatchResult erase_many(std::vector<std::string> keys,
                            DurabilityMode durability = DurabilityMode::BatchSync);
+    BatchResult clear(DurabilityMode durability = DurabilityMode::BatchSync);
 
     std::optional<std::string> get(const std::string& key) const;
     bool contains(const std::string& key) const;

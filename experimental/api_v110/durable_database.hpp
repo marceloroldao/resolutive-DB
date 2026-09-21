@@ -60,6 +60,10 @@ public:
     BatchResult erase_many(std::vector<std::string> keys,
                            DurabilityMode durability = DurabilityMode::BatchSync);
 
+    // Logically clears the current state by appending one durable delete batch.
+    // The WAL is preserved for audit/recovery; this does not truncate history.
+    BatchResult clear(DurabilityMode durability = DurabilityMode::BatchSync);
+
     void sync();
 
     std::optional<std::string> get(const std::string& key) const;

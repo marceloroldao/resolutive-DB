@@ -246,6 +246,21 @@ extern "C" bdr_atomic_c_status bdr_atomic_c_exists(
     }
 }
 
+extern "C" bdr_atomic_c_status bdr_atomic_c_clear(
+    bdr_atomic_c_handle *handle,
+    bdr_atomic_c_batch_result *out_result) {
+    if (!handle || !handle->db || !out_result) return BDR_ATOMIC_C_INVALID_ARGUMENT;
+    try {
+        const auto result = handle->db->clear(bdr::DurabilityMode::BatchSync);
+        out_result->sequence = result.sequence;
+        out_result->operations = result.operations;
+        out_result->durable = result.durable ? 1 : 0;
+        return BDR_ATOMIC_C_OK;
+    } catch (...) {
+        return BDR_ATOMIC_C_IO_ERROR;
+    }
+}
+
 extern "C" bdr_atomic_c_status bdr_atomic_c_sync(bdr_atomic_c_handle *handle) {
     if (!handle || !handle->db) return BDR_ATOMIC_C_INVALID_ARGUMENT;
     try { handle->db->sync(); return BDR_ATOMIC_C_OK; } catch (...) { return BDR_ATOMIC_C_IO_ERROR; }
