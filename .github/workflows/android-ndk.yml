@@ -46,7 +46,8 @@ jobs:
           echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
           "$SDKMANAGER" --version
       - name: Install Android NDK
-        run: "$SDKMANAGER" "ndk;27.2.12479018"
+        run: |
+          "$SDKMANAGER" "ndk;27.2.12479018"
       - name: Configure arm64-v8a
         run: >-
           cmake -S . -B build/android-arm64
