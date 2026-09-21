@@ -100,6 +100,9 @@ target_link_libraries(v1_atomic_c_api_restart PRIVATE bdr_atomic_c_api)
 add_executable(v1_atomic_c_api_torn_tail test_atomic_c_api_torn_tail.cpp)
 target_link_libraries(v1_atomic_c_api_torn_tail PRIVATE bdr_atomic_c_api)
 
+add_executable(v1_atomic_c_api_clear test_atomic_c_api_clear.cpp)
+target_link_libraries(v1_atomic_c_api_clear PRIVATE bdr_atomic_c_api)
+
 add_executable(v1_atomic_single_duplicate_recovery test_atomic_single_duplicate_recovery.cpp)
 target_link_libraries(v1_atomic_single_duplicate_recovery PRIVATE bdr_v1_candidate)
 
@@ -161,5 +164,6 @@ add_test(NAME v120_atomic_diagnostics COMMAND v120_atomic_diagnostics)
 add_test(NAME v1_c_api_restart COMMAND v1_c_api_restart)
 add_test(NAME v1_atomic_c_api_restart COMMAND v1_atomic_c_api_restart)
 add_test(NAME v1_atomic_c_api_torn_tail COMMAND v1_atomic_c_api_torn_tail)
+add_test(NAME v1_atomic_c_api_clear COMMAND v1_atomic_c_api_clear)
 add_test(NAME v1_atomic_single_duplicate_recovery COMMAND v1_atomic_single_duplicate_recovery)
 add_test(NAME v1_atomic_c_api_single_duplicate_recovery COMMAND v1_atomic_c_api_single_duplicate_recovery)
