@@ -91,6 +91,7 @@ ReplayResult replay(const std::vector<std::uint8_t>& bytes,
     result.last_sequence = initial_sequence;
 
     std::size_t pos = 0;
+    bool legacy_adjacent_duplicate_consumed = false;
     while (pos < bytes.size()) {
         if (bytes.size() - pos < 4) {
             result.torn_tail = true;
@@ -122,13 +123,16 @@ ReplayResult replay(const std::vector<std::uint8_t>& bytes,
 
         const std::uint64_t sequence = be64(frame + 12);
         const std::uint32_t count = be32(frame + 20);
-        const bool legacy_dual_handle_restart =
+        const bool legacy_adjacent_duplicate =
             initial_sequence == 0 &&
-            result.committed_batches == 1 &&
-            result.last_sequence == 1 &&
-            sequence == 1;
-        if (sequence != result.last_sequence + 1 && !legacy_dual_handle_restart) {
+            result.committed_batches >= 1 &&
+            !legacy_adjacent_duplicate_consumed &&
+            sequence == result.last_sequence;
+        if (sequence != result.last_sequence + 1 && !legacy_adjacent_duplicate) {
             throw std::runtime_error("BDW4 sequence gap");
+        }
+        if (legacy_adjacent_duplicate) {
+            legacy_adjacent_duplicate_consumed = true;
         }
         if (count == 0 || count > 1'000'000) {
             throw std::runtime_error("BDW4 operation count invalid");
