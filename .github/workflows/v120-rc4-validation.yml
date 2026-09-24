@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - release/v1.2.0-rc4
+      - main
+    paths:
+      - '.github/workflows/v120-rc4-validation.yml'
   pull_request:
     branches:
       - main
