@@ -18,11 +18,11 @@ freeze = (root / 'experimental/api_v91/API_FREEZE_DRAFT.md').read_text(encoding=
 rc_release_notes_path = root / 'RELEASE_NOTES_v0.2.0-rc1.md'
 v1_release_notes_path = root / 'RELEASE_NOTES_v1.0.0.md'
 v11_release_notes_path = root / 'RELEASE_NOTES_v1.1.0.md'
-v12_rc1_release_notes_path = root / 'RELEASE_NOTES_v1.2.0-rc3.md'
+v12_rc1_release_notes_path = root / 'RELEASE_NOTES_v1.2.0-rc4.md'
 
 stable_version = '1.1.0'
-candidate_version = '1.2.0rc3'
-candidate_tag_version = '1.2.0-rc3'
+candidate_version = '1.2.0rc4'
+candidate_tag_version = '1.2.0-rc4'
 software_doi = '10.5281/zenodo.22130421'
 previous_software_doi = '10.5281/zenodo.22120246'
 preprint_doi = '10.5281/zenodo.21937842'
@@ -79,7 +79,7 @@ if f'__version__ = "{expected_init_version}"' not in root_init:
 
 if candidate_mode:
     if not v12_rc1_release_notes_path.exists():
-        errors.append('RELEASE_NOTES_v1.2.0-rc3.md is missing for the 1.2.0rc3 candidate.')
+        errors.append('RELEASE_NOTES_v1.2.0-rc4.md is missing for the 1.2.0rc4 candidate.')
     else:
         rc_notes = v12_rc1_release_notes_path.read_text(encoding='utf-8')
         for needle in [
@@ -89,9 +89,9 @@ if candidate_mode:
             'No tag, GitHub release, Zenodo record, or stable promotion should be created until the final CI round',
         ]:
             if needle not in rc_notes:
-                errors.append(f'RELEASE_NOTES_v1.2.0-rc3.md missing RC safety evidence: {needle}')
+                errors.append(f'RELEASE_NOTES_v1.2.0-rc4.md missing RC safety evidence: {needle}')
     notes.append(
-        'Root package is the v1.2.0rc3 candidate; published CITATION.cff and Zenodo metadata intentionally remain on v1.1.0 until explicit RC publication.'
+        'Root package is the v1.2.0rc4 candidate; published CITATION.cff and Zenodo metadata intentionally remain on v1.1.0 until explicit RC publication.'
     )
 else:
     notes.append('Root package matches the published v1.1.0 stable release.')

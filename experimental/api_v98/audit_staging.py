@@ -10,8 +10,8 @@ staging = root / 'experimental/api_v98'
 errors = []
 notes = []
 stable_version = '1.1.0'
-candidate_version = '1.2.0rc3'
-candidate_tag_version = '1.2.0-rc3'
+candidate_version = '1.2.0rc4'
+candidate_tag_version = '1.2.0-rc4'
 software_doi = '10.5281/zenodo.22130421'
 previous_software_doi = '10.5281/zenodo.22120246'
 
@@ -34,7 +34,7 @@ require_text('LICENSE', 'BDR ACADEMIC AND NON-COMMERCIAL RESEARCH LICENSE v1.0')
 require_text('LICENSE', 'Commercial Use Prohibited Without Separate License')
 require_text('LICENSE', 'No Patent License')
 
-# Published metadata must remain pinned to v1.1.0 while v1.2.0rc3 is only a candidate.
+# Published metadata must remain pinned to v1.1.0 while v1.2.0rc4 is only a candidate.
 require_text('CITATION.cff', f'version: "{stable_version}"')
 require_text('CITATION.cff', f'releases/tag/v{stable_version}')
 require_text('CITATION.cff', f'doi: "{software_doi}"')
@@ -68,9 +68,9 @@ if f'__version__ = "{expected_init_version}"' not in root_init:
     errors.append(f'bdr.__version__ is not aligned with root package {expected_init_version}')
 
 if candidate_mode:
-    rc_path = root / 'RELEASE_NOTES_v1.2.0-rc3.md'
+    rc_path = root / 'RELEASE_NOTES_v1.2.0-rc4.md'
     if not rc_path.exists():
-        errors.append('RELEASE_NOTES_v1.2.0-rc3.md is missing for the 1.2.0rc3 candidate.')
+        errors.append('RELEASE_NOTES_v1.2.0-rc4.md is missing for the 1.2.0rc4 candidate.')
     else:
         rc_notes = rc_path.read_text(encoding='utf-8')
         for needle in [
@@ -80,8 +80,8 @@ if candidate_mode:
             'No tag, GitHub release, Zenodo record, or stable promotion should be created until the final CI round',
         ]:
             if needle not in rc_notes:
-                errors.append(f'RELEASE_NOTES_v1.2.0-rc3.md missing RC safety evidence: {needle}')
-    notes.append('v1.2.0rc3 candidate staging is active while published v1.1.0 citation/Zenodo metadata remains authoritative.')
+                errors.append(f'RELEASE_NOTES_v1.2.0-rc4.md missing RC safety evidence: {needle}')
+    notes.append('v1.2.0rc4 candidate staging is active while published v1.1.0 citation/Zenodo metadata remains authoritative.')
 else:
     notes.append('Root package remains on the published v1.1.0 stable line.')
 
