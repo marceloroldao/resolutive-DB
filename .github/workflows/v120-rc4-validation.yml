@@ -1,0 +1,73 @@
+name: BDR v1.2.0-rc4 validation
+
+on:
+  push:
+    branches:
+      - release/v1.2.0-rc4
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'pyproject.toml'
+      - 'bdr/__init__.py'
+      - 'experimental/api_v86/**'
+      - 'experimental/api_v97/**'
+      - 'experimental/api_v98/**'
+      - 'RELEASE_NOTES_v1.2.0-rc4.md'
+      - 'docs/releases/v1.2.0-rc4-validation.md'
+      - '.github/workflows/v120-rc4-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rc4:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout candidate with tags
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ zlib1g-dev
+
+      - name: Verify functional baseline ancestry and historical tags
+        run: |
+          git merge-base --is-ancestor d09914b85646353d8fd004ccf99e96a94fab9eef HEAD
+          test -n "$(git tag -l 'v1.2.0-rc1')"
+          test -n "$(git tag -l 'v1.2.0-rc2')"
+          test -n "$(git tag -l 'v1.2.0-rc3')"
+
+      - name: Verify RC4 package metadata
+        run: |
+          grep -q 'version = "1.2.0rc4"' pyproject.toml
+          grep -q '__version__ = "1.2.0rc4"' bdr/__init__.py
+
+      - name: Run release metadata audits
+        run: |
+          python experimental/api_v97/audit_release_metadata.py
+          python experimental/api_v98/audit_staging.py
+
+      - name: Build Atomic C ABI candidate
+        run: |
+          cmake -S experimental/api_v86 -B build-v86 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-v86 --config Release -j2
+
+      - name: Verify logical-clear ABI contract
+        shell: bash
+        run: |
+          grep -q 'BDR_ATOMIC_C_ABI_VERSION 2u' experimental/api_v86/include/bdr/atomic_c_api.h
+          grep -q 'bdr_atomic_c_clear' experimental/api_v86/include/bdr/atomic_c_api.h
+          LIB="$(find "$GITHUB_WORKSPACE/build-v86" -type f \( -name 'libbdr_atomic_c_api_shared.so' -o -name 'libbdr_atomic_c_api.so' \) | head -n1)"
+          test -n "$LIB"
+          nm -D "$LIB" | grep -q 'bdr_atomic_c_clear'
+
+      - name: Run complete V86 candidate tests
+        run: ctest --test-dir build-v86 --output-on-failure
+
+      - name: Run focused logical-clear cold-reopen test
+        run: ./build-v86/v1_atomic_c_api_clear
