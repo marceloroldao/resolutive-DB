@@ -26,6 +26,7 @@ candidate_tag_version = '1.2.0-rc4'
 software_doi = '10.5281/zenodo.22130421'
 previous_software_doi = '10.5281/zenodo.22120246'
 preprint_doi = '10.5281/zenodo.21937842'
+rc4_doi = '10.5281/zenodo.22948288'
 
 for needle in [
     'BDR ACADEMIC AND NON-COMMERCIAL RESEARCH LICENSE v1.0',
@@ -36,8 +37,8 @@ for needle in [
     if needle not in license_text:
         errors.append(f'LICENSE missing required clause: {needle}')
 
-# Published citation metadata remains pinned to the latest stable release while
-# an RC is under validation. An RC must not silently replace the published DOI.
+# The primary citation remains the stable baseline; a reference identifies the
+# published RC4 independently, without rewriting the stable software DOI.
 for needle in [
     f'version: "{stable_version}"',
     'repository-code: "https://github.com/marceloroldao/resolutive-DB"',
@@ -56,6 +57,9 @@ for forbidden in [
 ]:
     if forbidden in citation:
         errors.append(f'CITATION.cff contains stale/current-version software metadata: {forbidden}')
+
+if f'doi: "{rc4_doi}"' not in citation or 'version: "1.2.0-rc4"' not in citation:
+    errors.append('CITATION.cff does not reference published RC4 DOI and version')
 
 root_name_match = re.search(r'^name\s*=\s*"([^"]+)"', root_pyproject, re.M)
 root_version_match = re.search(r'^version\s*=\s*"([^"]+)"', root_pyproject, re.M)
@@ -83,26 +87,30 @@ if candidate_mode:
     else:
         rc_notes = v12_rc1_release_notes_path.read_text(encoding='utf-8')
         for needle in [
-            'release candidate under final validation',
+            'GitHub pre-release and Zenodo record published',
             'BDR v1.1.0 remains the published stable baseline',
             f'`v{candidate_tag_version}`',
-            'No tag, GitHub release, Zenodo record, or stable promotion should be created until the final CI round',
+            'The tag and Zenodo record are published'
         ]:
             if needle not in rc_notes:
                 errors.append(f'RELEASE_NOTES_v1.2.0-rc4.md missing RC safety evidence: {needle}')
     notes.append(
-        'Root package is the v1.2.0rc4 candidate; published CITATION.cff and Zenodo metadata intentionally remain on v1.1.0 until explicit RC publication.'
+        'Root package is the published v1.2.0rc4 candidate; the stable v1.1.0 primary citation remains intact and the RC4 DOI is referenced.'
     )
 else:
     notes.append('Root package matches the published v1.1.0 stable release.')
 
-if zenodo.get('version') != stable_version:
-    errors.append(f'.zenodo.json version is not published stable {stable_version}: {zenodo.get("version")!r}')
+if zenodo.get('version') != candidate_tag_version or zenodo.get('doi') != rc4_doi:
+    errors.append('.zenodo.json must identify the published RC4 version and DOI')
+if zenodo.get('title') != 'Banco de Dados Resolutivo (BDR) / Resolutive Database Engine — v1.2.0 Release Candidate 4':
+    errors.append('.zenodo.json RC4 title mismatch')
+if 'license' in zenodo:
+    errors.append('Custom BDR license must not be encoded as an unsupported Zenodo identifier')
 related = zenodo.get('related_identifiers') or []
-if not any(x.get('identifier') == software_doi and x.get('relation') == 'isIdenticalTo' for x in related):
-    errors.append('.zenodo.json does not identify the definitive v1.1.0 software DOI')
-if not any(x.get('identifier') == previous_software_doi and x.get('relation') == 'isNewVersionOf' for x in related):
-    errors.append('.zenodo.json does not relate v1.1.0 to the published v1.0.0 DOI with isNewVersionOf')
+if not any(x.get('identifier') == software_doi and x.get('relation') == 'isNewVersionOf' for x in related):
+    errors.append('.zenodo.json does not identify the stable v1.1.0 software DOI as RC4 predecessor')
+if any(x.get('relation') == 'isIdenticalTo' for x in related):
+    errors.append('.zenodo.json must not claim identity with an earlier version')
 if not any(x.get('identifier') == preprint_doi for x in related):
     errors.append('.zenodo.json does not preserve the scientific preprint relation')
 
@@ -130,6 +138,7 @@ else:
             errors.append(f'RELEASE_NOTES_v1.1.0.md missing publication evidence: {needle}')
 
 notes.append(f'BDR v1.1.0 definitive software DOI is {software_doi}.')
+notes.append(f'BDR v1.2.0-rc4 DOI is {rc4_doi}.')
 notes.append(f'Published v1.0.0 software DOI {previous_software_doi} is retained as prior-version provenance.')
 notes.append('The associated scientific preprint DOI remains unchanged.')
 
@@ -141,6 +150,7 @@ result = {
     'publication_target': candidate_tag_version if candidate_mode else stable_version,
     'publication_state': 'release-candidate' if candidate_mode else 'released',
     'software_doi': software_doi,
+    'candidate_doi': rc4_doi,
     'previous_software_doi': previous_software_doi,
     'historical_rc_integration_preserved': historical_rc_intact,
     'root_package': {'name': root_name, 'version': root_version},

@@ -1,8 +1,9 @@
 # Banco de Dados Resolutivo (BDR)
 
 **Current stable-engine line: BDR v1.1.0 — Released**  
-**Current release candidate: BDR v1.2.0-rc1 — Published pre-release, under validation**
+**Current release candidate: [BDR v1.2.0-rc4](https://github.com/marceloroldao/resolutive-DB/releases/tag/v1.2.0-rc4) — Published pre-release**
 
+**Software DOI (v1.2.0-rc4):** [10.5281/zenodo.22948288](https://doi.org/10.5281/zenodo.22948288)  
 **Software DOI (v1.2.0-rc1):** 10.5281/zenodo.22784729  
 **Software DOI (v1.1.0):** 10.5281/zenodo.22130421  
 **Previous software DOI (v1.0.0):** 10.5281/zenodo.22120246  
@@ -14,7 +15,11 @@ Projeto da **ETBRA Tecnologias** para investigar e desenvolver um mecanismo de a
 
 > **Status de engenharia:** v1.1.0 permanece a linha estável publicada. A v1.2.0-rc1 está publicada como pre-release e arquivada no Zenodo sob DOI `10.5281/zenodo.22784729`; ela adiciona o bridge atômico Python, leitura bulk otimizada, Atomic C ABI v2 e validação contra o workload topológico/temporal congelado da Memoria.ia. Não há redesign do BDW4. Resultados de desempenho continuam específicos ao workload e ao ambiente de teste.
 
-## Estado atual — v1.2.0-rc1 publicado
+## Estado atual — v1.2.0-rc4 publicado
+
+O RC4 adiciona `bdr_atomic_c_clear()` à Atomic C ABI v2 e foi arquivado no Zenodo sob DOI `10.5281/zenodo.22948288`. A tag publicada aponta para `317882a00f041fc1568ff986af8016b09453f21a`. A v1.1.0 continua a baseline estável. O RC1 abaixo permanece como marco histórico da linha candidata.
+
+## Histórico — v1.2.0-rc1 publicado
 
 O candidato v1.2.0-rc1 preserva a base v1.1 e acrescenta, de forma aditiva:
 
