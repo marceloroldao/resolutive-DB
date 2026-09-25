@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: "If you use BDR v1.1.0, please cite this software release and the associated scientific preprint where appropriate."
+message: "Cite the stable v1.1.0 release using the primary DOI; cite v1.2.0-rc4 using its DOI in references. The preprint is a separate work."
 title: "Banco de Dados Resolutivo (BDR) / Resolutive Database Engine"
 version: "1.1.0"
 type: software
@@ -41,3 +41,15 @@ preferred-citation:
       orcid: "https://orcid.org/0009-0003-6075-4680"
   year: 2026
   doi: "10.5281/zenodo.21937842"
+
+references:
+  - type: software
+    title: "Banco de Dados Resolutivo (BDR) / Resolutive Database Engine — v1.2.0 Release Candidate 4"
+    authors:
+      - family-names: "Matos"
+        given-names: "Marcelo Roldão"
+    version: "1.2.0-rc4"
+    date-released: "2026-09-25"
+    doi: "10.5281/zenodo.22948288"
+    repository-code: "https://github.com/marceloroldao/resolutive-DB"
+    url: "https://github.com/marceloroldao/resolutive-DB/releases/tag/v1.2.0-rc4"
