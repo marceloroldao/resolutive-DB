@@ -14,6 +14,7 @@ candidate_version = '1.2.0rc4'
 candidate_tag_version = '1.2.0-rc4'
 software_doi = '10.5281/zenodo.22130421'
 previous_software_doi = '10.5281/zenodo.22120246'
+rc4_doi = '10.5281/zenodo.22948288'
 
 
 def require_text(path, needle):
@@ -34,11 +35,12 @@ require_text('LICENSE', 'BDR ACADEMIC AND NON-COMMERCIAL RESEARCH LICENSE v1.0')
 require_text('LICENSE', 'Commercial Use Prohibited Without Separate License')
 require_text('LICENSE', 'No Patent License')
 
-# Published metadata must remain pinned to v1.1.0 while v1.2.0rc4 is only a candidate.
+# Keep the stable v1.1.0 primary citation and reference the published RC4 DOI.
 require_text('CITATION.cff', f'version: "{stable_version}"')
 require_text('CITATION.cff', f'releases/tag/v{stable_version}')
 require_text('CITATION.cff', f'doi: "{software_doi}"')
 require_text('CITATION.cff', '10.5281/zenodo.21937842')
+require_text('CITATION.cff', rc4_doi)
 require_text('RELEASE_NOTES_v1.1.0.md', 'V112 Memoria Atomic Benchmark')
 require_text('CHANGELOG.md', '1.1.0 — Final / Publication Ready')
 require_text('README.md', 'BDR v1.1.0 — Released')
@@ -74,14 +76,14 @@ if candidate_mode:
     else:
         rc_notes = rc_path.read_text(encoding='utf-8')
         for needle in [
-            'release candidate under final validation',
+            'GitHub pre-release and Zenodo record published',
             'BDR v1.1.0 remains the published stable baseline',
             f'`v{candidate_tag_version}`',
-            'No tag, GitHub release, Zenodo record, or stable promotion should be created until the final CI round',
+            'The tag and Zenodo record are published'
         ]:
             if needle not in rc_notes:
                 errors.append(f'RELEASE_NOTES_v1.2.0-rc4.md missing RC safety evidence: {needle}')
-    notes.append('v1.2.0rc4 candidate staging is active while published v1.1.0 citation/Zenodo metadata remains authoritative.')
+    notes.append('v1.2.0rc4 is published with its own DOI while v1.1.0 remains the stable citation baseline.')
 else:
     notes.append('Root package remains on the published v1.1.0 stable line.')
 
@@ -96,13 +98,13 @@ for forbidden in [
         errors.append(f'CITATION.cff contains stale/current-version software metadata: {forbidden}')
 
 zenodo = json.loads((root / '.zenodo.json').read_text(encoding='utf-8'))
-if zenodo.get('version') != stable_version:
-    errors.append(f'.zenodo.json is not published stable version {stable_version}')
+if zenodo.get('version') != candidate_tag_version or zenodo.get('doi') != rc4_doi:
+    errors.append('.zenodo.json must identify published RC4 version and DOI')
 related = zenodo.get('related_identifiers', [])
-if not any(x.get('identifier') == software_doi and x.get('relation') == 'isIdenticalTo' for x in related):
-    errors.append('.zenodo.json does not identify the definitive v1.1.0 DOI')
-if not any(x.get('identifier') == previous_software_doi and x.get('relation') == 'isNewVersionOf' for x in related):
-    errors.append('.zenodo.json does not identify v1.0.0 as the prior software version')
+if not any(x.get('identifier') == software_doi and x.get('relation') == 'isNewVersionOf' for x in related):
+    errors.append('.zenodo.json does not identify stable v1.1.0 as RC4 predecessor')
+if any(x.get('relation') == 'isIdenticalTo' for x in related):
+    errors.append('.zenodo.json falsely identifies RC4 with an earlier version')
 
 manifest_path = root / 'v96_out/final_manifest.json'
 if manifest_path.exists():
@@ -124,6 +126,7 @@ out = {
     'publication_target': candidate_tag_version if candidate_mode else stable_version,
     'publication_state': 'release-candidate' if candidate_mode else 'released',
     'software_doi': software_doi,
+    'candidate_doi': rc4_doi,
     'previous_software_doi': previous_software_doi,
     'candidate_evidence_present': manifest_path.exists(),
     'candidate': candidate,
