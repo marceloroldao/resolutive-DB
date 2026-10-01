@@ -14,7 +14,11 @@ authors = [
 license = { file = "LICENSE" }
 
 [tool.setuptools]
-packages = ["bdr"]
+packages = ["bdr", "explorer"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+explorer = ["static/*.html", "static/*.css", "static/*.js"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
