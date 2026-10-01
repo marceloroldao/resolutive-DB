@@ -1,0 +1,10 @@
+{
+  "rows": 399,
+  "groups": 133,
+  "all_sampled_fidelity_pass": true,
+  "seeds": [
+    "42",
+    "43",
+    "44"
+  ]
+}
